@@ -15,6 +15,27 @@ def bezier_basis(degree):
     polys = [p.as_poly() for p in [sym.binomial(n, k) * x**k * (1-x)**(n-k)for k in range(n+1)]]
     print_matrix(coefficient_matrix(polys))
 
+# It is easier to work directly with the polynomials. The above method manually expands this power.
+def bezier_segment_basis(degree):
+    x,y = Sym("x y")
+    p = ((x + y)**degree).expand()
+    return p
 
-for i in range(5):
-    bezier_basis(i)
+def bezier_triangle_basis(degree):
+    x,y,z = Sym("x y z")
+    p = ((x + y + z)**degree).expand()
+    return p
+
+def bezier_tetrahedron_basis(degree):
+    x,y,z,w = Sym("x y z w")
+    p = ((x + y + z + w)**degree).expand()
+    return p
+
+for i in range(6):
+    print(bezier_segment_basis(i))
+
+for i in range(4):
+    print(bezier_tetrahedron_basis(i))
+
+for i in range(4):
+    print(bezier_triangle_basis(i))
