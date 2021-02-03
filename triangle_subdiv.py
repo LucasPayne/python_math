@@ -123,3 +123,65 @@ AM = Mat([[0,0,0,0,Rat(1,8),Rat(1,8),0,0,Quarter],
           [Half,Half,Half,Quarter,Quarter,Quarter,Rat(3,4),Rat(3,4),Rat(3,4)]])
 print_matrix(AM * A.T * (A * A.T).inv())
 
+
+A = Mat([[0,0,Half,0,0],
+         [0,0,0,Half,0],
+         [Half,Half,0,0,1]])
+AM = Mat([[0,0,Half,0,0],
+         [0,0,Rat(1,8),Rat(1,8),Quarter],
+         [Rat(3,4), Rat(1,4), Rat(1,2), 0, Rat(1,2)]])
+
+print_matrix(A)
+print_matrix(AM)
+print_matrix(AM * A.T * (A * A.T).inv())
+
+x,y,z = Sym("x y z")
+X,Y,Z = Sym("X Y Z")
+print(((1-x)**2 / 2).expand())
+print((x/2 + y/2 + x*y).subs(y, 1-x).expand())
+
+A = Mat([[Half,-1,Half],
+         [Half,1,-1],
+         [0,0,Half]])
+M = sym.diag(1, 2, 4).inv()
+print_matrix(A * M * A.inv())
+
+
+# def polynomial_transformation_matrix(num_vars, subst):
+#     xs = sym.symbols(" ".join("x_{}".format(i) for i in range(1,num_vars+1)))
+
+
+def fun(subst):
+    x,y,z = Sym("x y z")
+    X,Y,Z = Sym("X Y Z")
+    polys = [X**2, Y**2, Z**2, X*Y, Y*Z, Z*X]
+    M = []
+    for p in polys:
+        pp = p.subs(subst).expand().subs({
+            x: X,
+            y: Y,
+            z: Z,
+        }).as_poly()
+        print(p, "|->", pp.as_expr())
+        coeffs = []
+        for coeff in polys:
+            try:
+                coeffs.append(pp.coeff_monomial(coeff))
+            except:
+                coeffs.append(0)
+        M.append(coeffs)
+    M = Mat(M)
+    A = sym.diag(1,1,1,2,2,2)
+    print_matrix(A * M * A.inv())
+    
+
+fun({
+    X: (x+y)/2,
+    Y: (y+z)/2,
+    Z: (z+x)/2,
+})
+fun({
+    X: x + y/2 + z/2,
+    Y: y/2,
+    Z: z/2,
+})
