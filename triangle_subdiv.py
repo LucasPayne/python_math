@@ -147,41 +147,65 @@ M = sym.diag(1, 2, 4).inv()
 print_matrix(A * M * A.inv())
 
 
-# def polynomial_transformation_matrix(num_vars, subst):
-#     xs = sym.symbols(" ".join("x_{}".format(i) for i in range(1,num_vars+1)))
-
-
-def fun(subst):
+def bezier_triangle_subpatch(degree, a0, b0, c0, a1, b1, c1, a2, b2, c2):
     x,y,z = Sym("x y z")
     X,Y,Z = Sym("X Y Z")
-    polys = [X**2, Y**2, Z**2, X*Y, Y*Z, Z*X]
+    monomials = [X**i * Y**j * Z**k for i,j,k in ordered_sums(3, degree)]
     M = []
-    for p in polys:
-        pp = p.subs(subst).expand().subs({
+    for mono in monomials:
+        p = mono.subs({
+            X: a0*x + a1*y + a2*z,
+            Y: b0*x + b1*y + b2*z,
+            Z: c0*x + c1*y + c2*z,
+        }).expand().subs({
             x: X,
             y: Y,
             z: Z,
         }).as_poly()
-        print(p, "|->", pp.as_expr())
+        # print(mono, "|->", p.as_expr())
         coeffs = []
-        for coeff in polys:
+        for mono2 in monomials:
             try:
-                coeffs.append(pp.coeff_monomial(coeff))
+                coeffs.append(p.coeff_monomial(mono2))
             except:
                 coeffs.append(0)
         M.append(coeffs)
     M = Mat(M)
-    A = sym.diag(1,1,1,2,2,2)
-    print_matrix(A * M * A.inv())
+    A = sym.diag(*[trinomial(degree, i,j,k)  for i,j,k in ordered_sums(3, degree)])
+    K = A * M * A.inv()
+    print_matrix(K)
+
+    for col, i,j,k in ordered_sums_indexed(3, degree):
+        string = "Q_{}{}{} = ".format(i,j,k)
+        string += " +\n        ".join("({})P_{}{}{}".format(K[row,col], ii,jj,kk) for row, ii,jj,kk in ordered_sums_indexed(3, degree) if K[row,col] != 0)
+        print(string + "\n")
+
+
+def bezier_triangle_middle_subpatch(degree):
+    bezier_triangle_subpatch(degree, 
+                             Rat(1,2), Rat(1,2), 0,
+                             0,        Rat(1,2), Rat(1,2),
+                             Rat(1,2), 0,        Rat(1,2))
+def bezier_triangle_bottom_left_subpatch(degree):
+    bezier_triangle_subpatch(degree, 
+                             1,        0,        0,
+                             Rat(1,2), Rat(1,2), 0,
+                             Rat(1,2), 0,        Rat(1,2))
     
 
-fun({
-    X: (x+y)/2,
-    Y: (y+z)/2,
-    Z: (z+x)/2,
-})
-fun({
-    X: x + y/2 + z/2,
-    Y: y/2,
-    Z: z/2,
-})
+bezier_triangle_middle_subpatch(2)
+bezier_triangle_bottom_left_subpatch(2)
+
+bezier_triangle_subpatch(2,
+    Half,Half,0,
+    0,1,0,
+    0,0,1,
+)
+bezier_triangle_subpatch(2,
+    Half,Half,0,
+    0,0,1,
+    Half,0,Half
+)
+
+# bezier_triangle_middle_subpatch(3)
+# bezier_triangle_bottom_left_subpatch(3)
