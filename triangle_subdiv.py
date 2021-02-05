@@ -216,11 +216,11 @@ bezier_triangle_subpatch(2,
 
 
 def quadratic_bezier_triangle_subpatch(M):
-    P = [[Sym("P_{}{}".format(i, j)) for j in range(3)] for i in range(3)]
+    N = [[Sym("N_{}{}".format(i, j)) for j in range(3)] for i in range(3)]
     mat = sym.zeros(3,3)
     for i,j in itertools.product(range(3), repeat=2):
-        mat += P[i][j] * (M.row(i).T * M.row(j))
-    print_matrix(mat)
+        mat += N[i][j] * (M.row(i).T * M.row(j))
+    print_matrix(mat.subs())
     
 
 quadratic_bezier_triangle_subpatch(sym.eye(3))
