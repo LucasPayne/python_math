@@ -1,4 +1,5 @@
 import sympy as sym
+import itertools
 from printing import print_coeffs, print_matrix
 Rat = sym.Rational
 Mat = sym.Matrix
@@ -146,7 +147,9 @@ A = Mat([[Half,-1,Half],
 M = sym.diag(1, 2, 4).inv()
 print_matrix(A * M * A.inv())
 
-
+# Compute the affine combinations of control points that give a triangular subpatch.
+# The subpatch is given by three barycentric points, in the space of the triangle.
+# (For example, inputting 1,0,0, 0,1,0, 0,0,1 will give the identity weights.)
 def bezier_triangle_subpatch(degree, a0, b0, c0, a1, b1, c1, a2, b2, c2):
     x,y,z = Sym("x y z")
     X,Y,Z = Sym("X Y Z")
@@ -209,3 +212,20 @@ bezier_triangle_subpatch(2,
 
 # bezier_triangle_middle_subpatch(3)
 # bezier_triangle_bottom_left_subpatch(3)
+
+
+
+def quadratic_bezier_triangle_subpatch(M):
+    P = [[Sym("P_{}{}".format(i, j)) for j in range(3)] for i in range(3)]
+    mat = sym.zeros(3,3)
+    for i,j in itertools.product(range(3), repeat=2):
+        mat += P[i][j] * (M.row(i).T * M.row(j))
+    print_matrix(mat)
+    
+
+quadratic_bezier_triangle_subpatch(sym.eye(3))
+quadratic_bezier_triangle_subpatch(Mat([
+    [1, Half, Half],
+    [0, Half, 0],
+    [0, 0,    Half]
+]))
