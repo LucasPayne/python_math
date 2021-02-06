@@ -215,17 +215,97 @@ bezier_triangle_subpatch(2,
 
 
 
-def quadratic_bezier_triangle_subpatch(M):
-    N = [[Sym("N_{}{}".format(i, j)) for j in range(3)] for i in range(3)]
-    mat = sym.zeros(3,3)
-    for i,j in itertools.product(range(3), repeat=2):
-        mat += N[i][j] * (M.row(i).T * M.row(j))
-    print_matrix(mat.subs())
+def rising_factorial
+
+def symmetric_tensor_size(k, rank):
+    # The size is the k'th rank-figurate number.
+    # (e.g. 2-figurate numbers are triangular, 3-figurate are pyramidal, etc.)
+    return rising_factorial(k, rank) // factorial(rank)
     
 
-quadratic_bezier_triangle_subpatch(sym.eye(3))
-quadratic_bezier_triangle_subpatch(Mat([
-    [1, Half, Half],
-    [0, Half, 0],
-    [0, 0,    Half]
-]))
+from math import factorial
+class symmetric_tensor:
+    def __init__(self, k, rank, init_array=None)
+        if init_array == None:
+            init_array = []
+            self._vals = [0 for _ symmetric_tensor_size(k, rank)]
+        assert(len(init_array) == symmetric_tensor_size(k, rank))
+        self._vals = init_array
+        self.k = k
+        self.rank = rank
+
+    def __getitem__(self, index):
+        assert(len(index) == rank
+    
+
+
+def bezier_triangle_subpatch_2(degree, M):
+    # degree: Degree of the the polynomial map. Determines the rank of the symmetric tensor and therefore the number of control points in the net.
+    k = 3 # Number of points in a basis simplex of the affine domain.
+    # M: (k+1)x(k+1) affine domain transformation matrix acting as Mp on points. Columns must sum to 1.
+
+
+    rank = degree # Rank of the symmetric tensor representing the polar form of the polynomial map.
+
+    # Form the symmetric tensor of symbolic control points.
+    tensor_vars = sym.symbols(" ".join("N_" + "".join(str(i) for i in index)) for index in itertools.product(k, repeat=rank))
+
+
+
+    control_point_vars = symmetric_tensor(k, rank,
+        sym.symbols(" ".join("P_" + "".join(i) for i in index) for index in ordered_sums(k, rank)
+    )
+
+    control_point_vars = symmetric_tensor(sym.symbols(" ".join("P_" + "".join(i) for i in index) for index in ordered_sums(k+1, rank)))
+
+
+
+
+    # tensor_weights = [[0 for _ in range(degree+1)] for __ in range(degree+1)]
+    # tensor_weights = [0 for _ in range((k+1)**rank)]
+
+
+
+    for i,j in itertools.product(range(degree+1), repeat=2):
+        tensor_weights[i][j] = sum(tensor_vars[ii][jj] * M[ii, i] * M[jj, j] for ii,jj in itertools.product(range(degree+1), repeat=2))
+
+
+    mat = sym.Matrix(tensor_weights)
+    print_matrix(mat)
+
+    for i,j in itertools.product(range(degree+1), repeat=2):
+        tri_index = [0,0,0]
+        tri_index[i] += 1
+        tri_index[j] += 1
+        net_var = sym.symbols("P_" + "".join(str(k) for k in tri_index))
+        mat = mat.subs(tensor_vars[i][j], net_var)
+    print_matrix(mat, lower_triangular=True)
+        
+        
+
+for degree in [2,3]:
+    print("Identity")
+    bezier_triangle_subpatch_2(degree, sym.eye(3))
+    print("Lower-left isometric")
+    bezier_triangle_subpatch_2(degree, Mat([
+        [1, Half, Half],
+        [0, Half, 0],
+        [0, 0,    Half]
+    ]))
+    print("Middle isometric")
+    bezier_triangle_subpatch_2(degree, Mat([
+        [Rat(1,2), Rat(1,2), 0],
+        [0,        Rat(1,2), Rat(1,2)],
+        [Rat(1,2), 0,        Rat(1,2)]
+    ]))
+
+
+
+
+# def bezier_simplex_subpatch(M):
+#     N = [[Sym("N_{}{}".format(i, j)) for j in range(3)] for i in range(3)]
+#     mat = sym.zeros(3,3)
+#     for i,j in itertools.product(range(3), repeat=2):
+#         mat += N[i][j] * (M.row(i).T * M.row(j))
+#     print_matrix(mat.subs())
+
