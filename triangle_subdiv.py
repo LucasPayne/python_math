@@ -11,6 +11,13 @@ def Rec(n):
     return Rat(1, n)
 
 
+from functools import reduce
+import operator
+def prod(lis):
+    return reduce(operator.mul, lis, 1)
+
+
+
 def trinomial(n, i,j,k):
     assert(i+j+k == n)
     return sym.binomial(n, i) * sym.binomial(n - i, j)
@@ -242,6 +249,23 @@ def stensor_indices_size(k, rank):
     return sum(stensor_indices_size(k-1, rank-i) for i in range(0, rank+1))
 
 
+
+def symmetric_tensor_indices(index):
+    # Get all corresponding tensor indices to a symmetric tensor index.
+    # The number of these is the multinomial coefficient (rank, index).
+    any_to_give = False
+    for position,i in enumerate(index):
+        if i > 0:
+            any_to_give = True
+            new_index = [j for j in index]
+            new_index[position] -= 1
+            for trailing_index in symmetric_tensor_indices(new_index):
+                yield [position] + trailing_index
+    if not any_to_give:
+        yield []
+        
+
+
 class stensor:
     def __init__(self, k, rank, init_array=None):
         if init_array == None:
@@ -253,6 +277,10 @@ class stensor:
         self.k = k
         self.rank = rank
 
+        
+
+    def indices(self):
+        yield from stensor_indices(self.k, self.rank)
 
     def to_tensor_index(self, index):
         assert(len(index) == self.k)
@@ -265,14 +293,18 @@ class stensor:
             pos += multiplicity
         return tensor_index
 
-    def __getitem__(self, index):
+    def to_flat_index(self, index):
         tensor_index = self.to_tensor_index(index)
         flat_index = 0
         for position, i in enumerate(tensor_index):
             flat_index += rising_factorial(self.k-1-i, self.rank - position) // factorial(self.rank - position)
-        # return _vals[flat_index]
         return flat_index
-    
+
+    def __getitem__(self, index):
+        return self._vals[self.to_flat_index(index)]
+
+    def set(self, index, value):
+        self._vals[self.to_flat_index(index)] = value
 
 
 # def bezier_triangle_subpatch_2(degree, M):
@@ -353,3 +385,44 @@ for index in stensor_indices(k, r):
     print(index, T.to_tensor_index(index))
 for index in stensor_indices(k, r):
     print(T[index])
+
+
+def _multinomial_coefficient(n, values, prefix):
+    if prefix == 2:
+        return sym.binomial(n, values[1])
+    return sym.binomial(n, values[prefix-1]) * _multinomial_coefficient(n - values[prefix-1], values, prefix-1)
+def multinomial_coefficient(n, values):
+    assert(sum(values) == n)
+    return _multinomial_coefficient(n, values, len(values))
+
+
+def transform_bezier_simplex(k, degree, M):
+    assert(M.rows == k and M.cols == k)
+    rank = degree
+    control_points = stensor(k, rank, sym.symbols(" ".join("P_" + "".join(str(i) for i in index) for index in stensor_indices(k, rank))))
+    masks = stensor(k, rank)
+    for mask_index in masks.indices():
+        mask_tensor_index = masks.to_tensor_index(mask_index)
+        for index in control_points.indices():
+            coeff = sum(prod(M[tensor_index[j], mask_tensor_index[j]] for j in range(rank)) for tensor_index in symmetric_tensor_indices(index))
+            masks.set(mask_index, masks[mask_index] + coeff * control_points[index])
+        print(masks[mask_index])
+
+
+m = Mat([
+    [Rat(1,2), Rat(1,2), 0],
+    [0,        Rat(1,2), Rat(1,2)],
+    [Rat(1,2), 0,        Rat(1,2)]
+])
+for degree in range(1, 5):
+    print("---- degree", degree)
+    transform_bezier_simplex(3, degree, m)
+    
+
+# print(multinomial_coefficient(6, [3,2,1]))
+# c = 0
+# test = [3,2,6,1]
+# for index in symmetric_tensor_indices(test):
+#     c += 1
+#     print(index)
+# print(c, multinomial_coefficient(sum(test), test))
