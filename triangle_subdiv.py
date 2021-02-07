@@ -263,7 +263,23 @@ def symmetric_tensor_indices(index):
                 yield [position] + trailing_index
     if not any_to_give:
         yield []
-        
+
+def stensor_to_tensor_index(k, rank, index):
+    assert(len(index) == k)
+    assert(sum(index) == rank)
+    tensor_index = [0 for _ in range(rank)]
+    pos = 0
+    for basis_index, multiplicity in enumerate(index):
+        for i in range(multiplicity):
+            tensor_index[pos + i] = basis_index
+        pos += multiplicity
+    return tensor_index
+
+def tensor_to_stensor_index(k, rank, index):
+    stensor_index = [0 for _ in range(k)]
+    for i in index:
+        stensor_index[i] += 1
+    return tuple(stensor_index)
 
 
 class stensor:
@@ -278,7 +294,6 @@ class stensor:
         self.rank = rank
 
         
-
     def indices(self):
         yield from stensor_indices(self.k, self.rank)
 
@@ -292,6 +307,13 @@ class stensor:
                 tensor_index[pos + i] = basis_index
             pos += multiplicity
         return tensor_index
+
+    def to_stensor_index(self, tensor_index):
+        stensor_index = [0 for _ in range(self.rank+1)]
+        for i in tensor_index:
+            stensor_index[i] += 1
+        return tuple(stensor_index)
+
 
     def to_flat_index(self, index):
         tensor_index = self.to_tensor_index(index)
@@ -397,15 +419,21 @@ def multinomial_coefficient(n, values):
 
 
 def transform_bezier_simplex(k, degree, M):
+    print("------------------------------------------------------------")
+    print("k={}, degree={}".format(k, degree))
+    print("M =")
+    print_matrix(M)
     assert(M.rows == k and M.cols == k)
     rank = degree
     control_points = stensor(k, rank, sym.symbols(" ".join("P_" + "".join(str(i) for i in index) for index in stensor_indices(k, rank))))
     masks = stensor(k, rank)
     for mask_index in masks.indices():
         mask_tensor_index = masks.to_tensor_index(mask_index)
-        for index in control_points.indices():
-            coeff = sum(prod(M[tensor_index[j], mask_tensor_index[j]] for j in range(rank)) for tensor_index in symmetric_tensor_indices(index))
-            masks.set(mask_index, masks[mask_index] + coeff * control_points[index])
+        masks.set(mask_index, sum(
+            sum(prod(M[tensor_index[j], mask_tensor_index[j]] for j in range(rank)) for tensor_index in symmetric_tensor_indices(index))
+            * control_points[index]
+            for index in control_points.indices()
+        ))
         print(masks[mask_index])
 
 
@@ -415,9 +443,11 @@ m = Mat([
     [Rat(1,2), 0,        Rat(1,2)]
 ])
 for degree in range(1, 5):
-    print("---- degree", degree)
     transform_bezier_simplex(3, degree, m)
-    
+
+
+
+transform_bezier_simplex(2, 4, Mat([[1,Half],[0,Half]]))
 
 # print(multinomial_coefficient(6, [3,2,1]))
 # c = 0
@@ -426,3 +456,45 @@ for degree in range(1, 5):
 #     c += 1
 #     print(index)
 # print(c, multinomial_coefficient(sum(test), test))
+
+
+
+def deboor_to_bezier_knot_mask(top_index, mask_extent):
+    top_index = list(top_index)
+    print(top_index)
+
+    knot_mask = [tuple(top_index)]
+    for depth in range(1, mask_extent+1):
+        base_index = top_index[:]
+        base_index[0] -= depth
+        print(base_index)
+        for comb in itertools.combinations_with_replacement(range(1, len(top_index)), depth):
+            print(comb)
+            index = base_index[:]
+            for i in comb:
+                index[i] += 1
+            knot_mask.append(tuple(index))
+
+    print("---")
+    for knot in knot_mask:
+        print(knot)
+    return knot_mask
+    
+
+def deboor_to_bezier(domain_dim, degree, knots):
+    assert(knots.k == 2*degree)
+    assert(knots.rank == domain_dim)
+    for deboor_net_index in stensor_indices(degree+1, domain_dim):
+        top_knot_mask_index = list(deboor_net_index)
+        top_knot_mask_index[0] += 1
+        knot_mask_extent = degree-1
+        
+
+        
+
+
+        
+
+deboor_to_bezier(2, 2, stensor(4, 2))
+
+deboor_to_bezier_knot_mask((2,0,1), 2)
