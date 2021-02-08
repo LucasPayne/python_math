@@ -281,6 +281,21 @@ def tensor_to_stensor_index(k, rank, index):
         stensor_index[i] += 1
     return tuple(stensor_index)
 
+def stensor_to_flat_index(k, rank, stensor_index):
+    tensor_index = stensor_to_tensor_index(stensor_index)
+    flat_index = 0
+    for position, i in enumerate(tensor_index):
+        flat_index += rising_factorial(k-1-i, rank - position) // factorial(rank - position)
+    return flat_index
+
+def tensor_to_flat_index(k, rank, tensor_index):
+    # The tensor index is assumed to index into a symmetric tensor.
+    flat_index = 0
+    for position, i in enumerate(tensor_index):
+        flat_index += rising_factorial(k-1-i, rank - position) // factorial(rank - position)
+    return flat_index
+
+
 
 class stensor:
     def __init__(self, k, rank, init_array=None):
@@ -298,7 +313,9 @@ class stensor:
         yield from stensor_indices(self.k, self.rank)
 
     def to_tensor_index(self, index):
+        # print(len(index), self.k)
         assert(len(index) == self.k)
+        # print(sum(index), self.rank)
         assert(sum(index) == self.rank)
         tensor_index = [0 for _ in range(self.rank)]
         pos = 0
@@ -461,40 +478,142 @@ transform_bezier_simplex(2, 4, Mat([[1,Half],[0,Half]]))
 
 def deboor_to_bezier_knot_mask(top_index, mask_extent):
     top_index = list(top_index)
-    print(top_index)
-
     knot_mask = [tuple(top_index)]
     for depth in range(1, mask_extent+1):
         base_index = top_index[:]
         base_index[0] -= depth
-        print(base_index)
         for comb in itertools.combinations_with_replacement(range(1, len(top_index)), depth):
-            print(comb)
             index = base_index[:]
             for i in comb:
                 index[i] += 1
             knot_mask.append(tuple(index))
-
-    print("---")
-    for knot in knot_mask:
-        print(knot)
     return knot_mask
     
 
 def deboor_to_bezier(domain_dim, degree, knots):
-    assert(knots.k == 2*degree)
-    assert(knots.rank == domain_dim)
+    assert(knots.rank == 2*degree-1)
+    assert(knots.k == domain_dim+1)
     for deboor_net_index in stensor_indices(degree+1, domain_dim):
         top_knot_mask_index = list(deboor_net_index)
-        top_knot_mask_index[0] += 1
-        knot_mask_extent = degree-1
-        
-
-        
-
-
-        
-
-deboor_to_bezier(2, 2, stensor(4, 2))
+        top_knot_mask_index[0] += degree-1
+        print("---")
+        print(top_knot_mask_index)
+        print("---")
+        # knot_mask = [knot[knot_index
+        for knot_index in deboor_to_bezier_knot_mask(top_knot_mask_index, degree-1):
+            print(knot_index)
+            print(knots[knot_index])
 
 deboor_to_bezier_knot_mask((2,0,1), 2)
+deboor_to_bezier(2, 2, stensor(3, 3, [index for index in stensor_indices(3,3)]))
+
+
+def figurate_number(n, k):
+    return rising_factorial(k, n) // factorial(n)
+
+
+def deboor_to_bezier(domain_simplex_dim, continuity, knots=None):
+
+    print("============================================================")
+    print("deboor_to_bezier, domain_simplex_dim={}, continuity={}".format(domain_simplex_dim, continuity))
+    print("------------------------------------------------------------")
+
+    # Compute the de Boor net width as a figurate number, then check
+    # that the knot tensor has the right shape.
+    # ------------------------------------------------------------
+    deboor_net_width = figurate_number(domain_simplex_dim-1, continuity+1)+1 #---
+    num_deboor_points = figurate_number(domain_simplex_dim-1, deboor_net_width)
+    degree = deboor_net_width-1
+    knots_width = deboor_net_width + continuity
+    num_knots = figurate_number(domain_simplex_dim-1, knots_width)
+    print("deboor_net_width:", deboor_net_width)
+    print("num_deboor_points:", num_deboor_points)
+    print("degree:", degree)
+    print("knots_width:", knots_width)
+    print("num_knots:", num_knots)
+    if knots == None:
+        knots = stensor(domain_simplex_dim, knots_width-1)
+        for index in knots.indices():
+            knots.set(index, index) # just some distinct value for now
+    elif type(knots) == list:
+        knots = stensor(domain_simplex_dim, knots_width-1, knots)
+    assert(knots.k == domain_simplex_dim)
+    assert(knots.rank == knots_width-1)
+
+
+    deboor_weights_matrix = []
+    for deboor_index in stensor_indices(domain_simplex_dim, degree):
+        # For each de Boor net index, get a list of corresponding knot
+        # indices into the knot tensor.
+        # ------------------------------------------------------------
+        print("------------------------------------------------------------")
+        print("deboor_index:", deboor_index)
+        print("---")
+        top_knot_mask_index = list(deboor_index)
+        top_knot_mask_index[0] += continuity
+        knot_mask_indices = deboor_to_bezier_knot_mask(top_knot_mask_index, continuity)
+        print("knot_mask_indices:", knot_mask_indices)
+        knot_mask = [knots[knot_index] for knot_index in knot_mask_indices]
+        print("knot_mask:", knot_mask)
+        
+        # The values in the knot tensor are points in the affine domain. The de Boor net point p (of index deboor_index) is
+        # p = f(...) where f is multi-affine and symmetric and the inputs are the knots in the knot mask of p, knot_mask.
+        # Expanding p = f(...) gives p as an affine combination of Bezier points f(e_i,...), which are multiset inputs
+        # of the affine domain basis simplex that the knots are expressed in.
+
+        affine_weights = [0 for _ in range(num_deboor_points)] # one for each Bezier point.
+        for multiindex in itertools.product(range(domain_simplex_dim), repeat=degree):
+            flat_index = tensor_to_flat_index(domain_simplex_dim, degree, multiindex)
+            affine_weights[flat_index] += prod(knot_mask[position][i] for position,i in enumerate(multiindex))
+        print("weights:", affine_weights)
+
+        deboor_weights_matrix.append(affine_weights)
+
+        # for bezier_point_index in stensor_indices(domain_simplex_dim, deboor_net_width):
+        #     symmetric_tensor_indices(bezier_point_index)
+        # masks.set(mask_index, sum(
+        #     sum(prod(M[tensor_index[j], mask_tensor_index[j]] for j in range(rank)) for tensor_index in symmetric_tensor_indices(index))
+        #     * control_points[index]
+        #     for index in control_points.indices()
+        # ))
+        
+        print(knot_mask)
+
+    # Check that the rows sum to 1. If not, something definitely went wrong.
+    for row in deboor_weights_matrix:
+        assert(sum(row) == 1)
+
+    deboor_weights_matrix = sym.Matrix(deboor_weights_matrix)
+    print_matrix(deboor_weights_matrix)
+    print_matrix(deboor_weights_matrix.inv())
+
+    deboor_to_bezier_matrix = deboor_weights_matrix.inv()
+    for i,index in enumerate(stensor_indices(domain_simplex_dim, degree)):
+        print("{}: {}".format(index, ", ".join(str(c) for c in list(deboor_to_bezier_matrix.row(i)))))
+    
+    
+
+
+def deboor_to_bezier_uniform_curve(continuity):
+    deboor_to_bezier(2, continuity, [(continuity+1-i, -continuity+i) for i in range(2*(continuity+1))])
+
+for i in range(6):
+    deboor_to_bezier_uniform_curve(i)
+
+
+
+def deboor_to_bezier_uniform_surface(continuity):
+    knots = []
+    degree = figurate_number(3-1, continuity+1)
+    for index in stensor_indices(3, figurate_number(3-1, continuity+1)+continuity):
+        knot = list(index)
+        for i in range(len(knot)):
+            knot[i] -= continuity
+        knots.append(tuple(knot))
+    deboor_to_bezier(3, continuity, knots)
+    for k in knots:
+        print(k)
+    print(len(knots))
+
+deboor_to_bezier_uniform_surface(0)
+deboor_to_bezier_uniform_surface(1)
