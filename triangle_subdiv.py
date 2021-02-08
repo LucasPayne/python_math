@@ -290,11 +290,17 @@ def stensor_to_flat_index(k, rank, stensor_index):
 
 def tensor_to_flat_index(k, rank, tensor_index):
     # The tensor index is assumed to index into a symmetric tensor.
-    flat_index = 0
-    for position, i in enumerate(tensor_index):
-        flat_index += rising_factorial(k-1-i, rank - position) // factorial(rank - position)
-    return flat_index
-
+    # Brute force conversion.
+    stensor_index = tensor_to_stensor_index(k, rank, tensor_index)
+    for i,index in enumerate(stensor_indices(k, rank)):
+        if index == stensor_index:
+            return i
+    assert(0)
+    # #--------- this version doesn't work
+    # flat_index = 0
+    # for position, i in enumerate(tensor_index):
+    #     flat_index += rising_factorial(k-1-i, rank - position) // factorial(rank - position)
+    # return flat_index
 
 
 class stensor:
@@ -333,11 +339,17 @@ class stensor:
 
 
     def to_flat_index(self, index):
-        tensor_index = self.to_tensor_index(index)
-        flat_index = 0
-        for position, i in enumerate(tensor_index):
-            flat_index += rising_factorial(self.k-1-i, self.rank - position) // factorial(self.rank - position)
-        return flat_index
+        # Brute force conversion to index into flat array.
+        for i,other_index in enumerate(self.indices()):
+            if index == other_index:
+                return i
+        assert(0)
+        # ---this version doesn't work
+        # tensor_index = self.to_tensor_index(index)
+        # flat_index = 0
+        # for position, i in enumerate(tensor_index):
+        #     flat_index += rising_factorial(self.k-1-i, self.rank - position) // factorial(self.rank - position)
+        # return flat_index
 
     def __getitem__(self, index):
         return self._vals[self.to_flat_index(index)]
@@ -568,14 +580,6 @@ def deboor_to_bezier(domain_simplex_dim, continuity, knots=None):
         print("weights:", affine_weights)
 
         deboor_weights_matrix.append(affine_weights)
-
-        # for bezier_point_index in stensor_indices(domain_simplex_dim, deboor_net_width):
-        #     symmetric_tensor_indices(bezier_point_index)
-        # masks.set(mask_index, sum(
-        #     sum(prod(M[tensor_index[j], mask_tensor_index[j]] for j in range(rank)) for tensor_index in symmetric_tensor_indices(index))
-        #     * control_points[index]
-        #     for index in control_points.indices()
-        # ))
         
         print(knot_mask)
 
