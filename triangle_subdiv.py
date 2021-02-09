@@ -525,7 +525,7 @@ def figurate_number(n, k):
 
 
 def deboor_to_bezier(domain_simplex_dim, continuity, knots=None):
-
+    #----- This only works for domain_simplex_dim == 2. The attempt of generalization to higher simplex dimension did not work or really make sense.
     print("============================================================")
     print("deboor_to_bezier, domain_simplex_dim={}, continuity={}".format(domain_simplex_dim, continuity))
     print("------------------------------------------------------------")
@@ -621,3 +621,95 @@ def deboor_to_bezier_uniform_surface(continuity):
 
 deboor_to_bezier_uniform_surface(0)
 deboor_to_bezier_uniform_surface(1)
+
+
+
+def bezier_curve_degree_elevation(m, n):
+    # Multiply the Bezier curve polynomial of degree m by (u+v)^(n-m) and regroup terms
+    # to get Bezier coefficients for the equivalent polynomial of degree n.
+    assert(n > m)
+    u,v = sym.symbols("u v")
+    ps = sym.symbols(" ".join("p_{}".format(i) for i in range(m+1)))
+    f = 0
+    for i in range(m+1):
+        f += ps[i] * sym.binomial(m, i) * u**i * v**(m-i)
+    f = f.as_poly()
+    print(f)
+    g = (u + v)**(n - m) * f
+    print(g)
+    M = []
+    for i in range(n+1):
+        coeffs = []
+        for j in range(m+1):
+            coeffs.append(g.coeff_monomial(ps[j] * u**i * v**(n-i)) / sym.binomial(n, i))
+        print(coeffs)
+        M.append(coeffs)
+    M = sym.Matrix(M)
+    print_matrix(M)
+
+bezier_curve_degree_elevation(2, 4)
+bezier_curve_degree_elevation(1, 2)
+
+
+M = Mat([[1,-2,1],[0,2,-2],[0,0,1]])
+print_matrix(M)
+print_matrix(M.inv())
+
+
+def add_indices(index, add):
+    assert(len(index) == len(add))
+    return (index[i]+add[i] for i in range(len(index)))
+
+
+
+def permutation_function(perm):
+    return lambda lis: [lis[perm[i]] for i in range(len(lis))]
+
+def cyclic_permutations(n):
+    ns = list(range(n))
+    for i in range(n-1):
+        yield permutation_function(ns[i:]+ns[:i])
+
+
+def print_triangle_stensor(s):
+    assert(s.k == 3)
+    lists = [[0 for _ in range(s.rank+1)] for i in range(s.rank+1)]
+    for index in s.indices():
+        lists[s.rank-index[0]][index[1]] = s[index]
+    print_matrix(sym.Matrix(lists), lower_triangular=True)
+        
+
+
+def regular_triangular_bspline(continuity):
+    assert(continuity % 2 == 0)
+
+    patch_degree = 1
+    patches_width = 3
+    grid = stensor(3, 3)
+    grid.set((1,1,1), 1)
+
+    print_triangle_stensor(grid)
+    
+    # for iteration in range(continuity):
+    #     for perm in cyclic_permutations(3):
+    #         shift_subtract_grid = stensor(3, patch_degree*(patches_width+1))
+    #         for index in grid:
+    #             new_index = add_indices(index, perm((patch_degree, 0, 0)))
+    #             shift_index = add_indices(new_index, perm((0, patch_degree, -patch_degree)))
+    #             shift_subtract_grid.set(new_index, shift_subtract_grid[new_index] + grid[index])
+    #             shift_subtract_grid.set(shift_index, shift_subtract_grid[shift_index] - grid[index])
+            
+
+            # new_patch_degree = patch_degree + 1
+            # new_patches_width = new_patches_width + 1
+            # new_grid = stensor(3, new_patch_degree * new_patches_width)
+            # patch_degree = new_patch_degree
+            # patches_width = new_patches_width
+            # grid = new_grid
+
+# lis = ["a", "b", "c"]
+# for p in cyclic_permutations(3):
+#     print(p(lis))
+
+regular_triangular_bspline(2)
+
