@@ -658,8 +658,7 @@ print_matrix(M.inv())
 
 def add_indices(index, add):
     assert(len(index) == len(add))
-    return (index[i]+add[i] for i in range(len(index)))
-
+    return tuple(index[i]+add[i] for i in range(len(index)))
 
 
 def permutation_function(perm):
@@ -667,7 +666,7 @@ def permutation_function(perm):
 
 def cyclic_permutations(n):
     ns = list(range(n))
-    for i in range(n-1):
+    for i in range(n):
         yield permutation_function(ns[i:]+ns[:i])
 
 
@@ -679,26 +678,68 @@ def print_triangle_stensor(s):
     print_matrix(sym.Matrix(lists), lower_triangular=True)
         
 
-
+# Shift-subtract-integrate convolution to form B-spline basis functions on a regular triangle grid as described in
+#    Malcolm Sabin, 1977: The use of piecewise forms for the numerical representation of shape.
 def regular_triangular_bspline(continuity):
     assert(continuity % 2 == 0)
+    print("regular_triangular_bspline, continuity={}".format(continuity))
+    print("============================================================")
 
     patch_degree = 1
     patches_width = 3
     grid = stensor(3, 3)
     grid.set((1,1,1), 1)
 
+    print("Initial grid")
     print_triangle_stensor(grid)
+    print("------------------------------------------------------------")
     
-    # for iteration in range(continuity):
-    #     for perm in cyclic_permutations(3):
-    #         shift_subtract_grid = stensor(3, patch_degree*(patches_width+1))
-    #         for index in grid:
-    #             new_index = add_indices(index, perm((patch_degree, 0, 0)))
-    #             shift_index = add_indices(new_index, perm((0, patch_degree, -patch_degree)))
-    #             shift_subtract_grid.set(new_index, shift_subtract_grid[new_index] + grid[index])
-    #             shift_subtract_grid.set(shift_index, shift_subtract_grid[shift_index] - grid[index])
-            
+    for iteration in range(continuity//2):
+        # Do the same shift-subtract-integrate convolution symmetrically in each direction.
+
+        # Directions of convolution: i->j, j->k, k->i.
+        # The below code is written w/r/t i->j, and the other directions are accounted for by permuting the multi-indices used.
+        for perm in cyclic_permutations(3):
+            # Shift the patch coefficients over one patch in the direction of integration,
+            # and subtract this from the patch coefficients.
+            shift_subtract_grid = stensor(3, patch_degree*(patches_width+1))
+            for index in grid.indices():
+                new_index = add_indices(index, perm((patch_degree, 0, 0)))
+                shift_index = add_indices(new_index, perm((-patch_degree, patch_degree, 0)))
+                shift_subtract_grid.set(new_index, shift_subtract_grid[new_index] + grid[index])
+                shift_subtract_grid.set(shift_index, shift_subtract_grid[shift_index] - grid[index])
+            print_triangle_stensor(shift_subtract_grid)
+
+            # Integrate, raising the degree of each patch by one.
+            integration_grid = stensor(3, (patch_degree+1)*(patches_width+1))
+            # Go over each strip of patches. In each strip, there are two stages of integration, for each orientation of triangle.
+            #            /\
+            #           /_ \ <-- Each quadrilateral: ,---------
+            #          /_ / \                       /\        /               
+            #         /_ /   \                     /  \      /                
+            #        /_ /     \                   /    \    /                 
+            #       /_ /       \                 /      \  /                  
+            #      /_ /         \               /________\/                   
+            #     /_ /           \                                              
+            #    /__/_____________\                                             
+            for depth in range(patches_width):
+                # Depth increases from the top-left strip to the bottom-right corner.
+                for height in range(patches_width - depth):
+                    # Height ranges from the bottom-most part of the strip to the top-most.
+                    #
+                    # Each quadrilateral is formed by two patches with shared coefficients.
+                    # For example, below is the structure of coefficients for two degree 2 patches.
+                    #         *---o-----o                          
+                    #        /\  / \   /
+                    #       /  \/   \ / 
+                    #      *---o-----o                         
+                    #     / \ /  \  /                  
+                    #    *___o____o/   The *s are constants of integration, assumed already computed when integrating previous strips.
+                    for patch_depth in range(1, patch_degree+1):
+                        for patch_height in range(patch_degree+1-patch_depth):
+                            
+
+
 
             # new_patch_degree = patch_degree + 1
             # new_patches_width = new_patches_width + 1
