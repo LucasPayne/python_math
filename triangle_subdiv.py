@@ -304,10 +304,12 @@ def tensor_to_flat_index(k, rank, tensor_index):
 
 
 class stensor:
-    def __init__(self, k, rank, init_array=None):
+    def __init__(self, k, rank, init_array=None, **kwargs):
         if init_array == None:
-            init_array = []
-            self._vals = [0 for _ in range(stensor_size(k, rank))]
+            if "sym_rational" in kwargs:
+                self._vals = [sym.Rational(0, 1) for _ in range(stensor_size(k, rank))]
+            else:
+                self._vals = [0 for _ in range(stensor_size(k, rank))]
         else:
             assert(len(init_array) == stensor_size(k, rank))
             self._vals = init_array
@@ -340,9 +342,13 @@ class stensor:
 
     def to_flat_index(self, index):
         # Brute force conversion to index into flat array.
+        assert(len(index) == self.k)
+        assert(sum(index) == self.rank)
         for i,other_index in enumerate(self.indices()):
             if index == other_index:
                 return i
+
+        print("FAILED flat index conversion on index", index)
         assert(0)
         # ---this version doesn't work
         # tensor_index = self.to_tensor_index(index)
@@ -661,6 +667,11 @@ def relative_index(index, add):
     assert(sum(add) == 0)
     return tuple(index[i]+add[i] for i in range(len(index)))
 
+def add_indices(index, add):
+    assert(len(index) == len(add))
+    return tuple(index[i]+add[i] for i in range(len(index)))
+
+
 
 def permutation_function(perm):
     return lambda lis: [lis[perm[i]] for i in range(len(lis))]
@@ -688,7 +699,7 @@ def regular_triangular_bspline(continuity):
 
     patch_degree = 1
     patches_width = 3
-    grid = stensor(3, 3)
+    grid = stensor(3, 3, sym_rational=True)
     grid.set((1,1,1), 1)
 
     print("Initial grid")
@@ -697,40 +708,49 @@ def regular_triangular_bspline(continuity):
     
     # Each repetition gives 2 more degrees of continuity.
     for iteration in range(continuity//2):
+        print("================================================================================")
+        print("ITERATION", iteration+1)
+        print("================================================================================")
         # Do the same shift-subtract-integrate convolution symmetrically in each direction.
         # Directions of convolution: i->j, j->k, k->i.
         # The below code is written w/r/t i->j, and the other directions are accounted for by permuting the multi-indices used.
         for perm in cyclic_permutations(3):
+            print("--------------------------------------------------------------------------------")
+            print("DIRECTION", ", ".join(str(i) for i in perm((1,2,3))))
+            print("--------------------------------------------------------------------------------")
             # Shift the patch coefficients over one patch in the direction of integration,
             # and subtract this from the patch coefficients.
-            shift_subtract_grid = stensor(3, patch_degree*(patches_width+1))
+            shift_subtract_grid = stensor(3, patch_degree*(patches_width+1), sym_rational=True)
             for index in grid.indices():
-                new_index = relative_index(index, perm((patch_degree, 0, 0)))
+                new_index = add_indices(index, perm((patch_degree, 0, 0)))
                 shift_index = relative_index(new_index, perm((-patch_degree, patch_degree, 0)))
                 shift_subtract_grid.set(new_index, shift_subtract_grid[new_index] + grid[index])
                 shift_subtract_grid.set(shift_index, shift_subtract_grid[shift_index] - grid[index])
             print_triangle_stensor(shift_subtract_grid)
 
             # Integrate, raising the degree of each patch by one.
-            integration_grid = stensor(3, (patch_degree+1)*(patches_width+1))
+            integrand_grid = shift_subtract_grid
+            integral_grid = stensor(3, (patch_degree+1)*(patches_width+1))
             # Go over each strip of patches. In each strip, there are two stages of integration, for each orientation of triangle.
             #            /\
-            #           /_ \ <-- Each quadrilateral: ,---------
-            #          /_ / \                       /\        /               
-            #         /_ /   \                     /  \      /                
-            #        /_ /     \                   /    \    /                 
-            #       /_ /       \                 /      \  /                  
-            #      /_ /         \               /________\/                   
-            #     /_ /           \                                              
+            #           /__\ <-- Each quadrilateral: ,---------
+            #          /__/ \                       /\        /               
+            #         /__/   \                     /  \      /                
+            #        /__/     \                   /    \    /                 
+            #       /__/       \                 /      \  /                  
+            #      /__/         \               /________\/                   
+            #     /__/           \                                              
             #    /__/_____________\                                             
             new_patch_degree = patch_degree+1
+            patches_width += 1 # Now that shift-subtract is done, the grid is wider.
+            
             for depth in range(patches_width):
                 # Depth increases from the top-left strip to the bottom-right corner.
                 for height in range(patches_width - depth):
                     # Height ranges from the bottom-most part of the strip to the top-most.
                     #
                     # Each quadrilateral is formed by two patches with shared coefficients.
-                    # For example, below is the structure of coefficients for a quadrilateral of degree 2 patches.
+                    # For example, below is the structure of coefficients for a quadrilateral of degree 1 and 2.
                     #
                     #         o---------o                          
                     #        /\        /
@@ -746,11 +766,21 @@ def regular_triangular_bspline(continuity):
                     #     / \ /  \  /                  
                     #    *___o____o/   The *s are constants of integration, assumed already computed when integrating previous strips.
 
-                    # Form the index of the lower-left coefficient in the integrand grid.
-		    integrand_lower_left_index = perm(((patches_width - height)*patch_degree, depth*patch_degree, height*patch_degree))
-                    # Form the corresponding index in the integrated grid.
-		    lower_left_index = perm(((patches_width - height)*new_patch_degree-1, depth*new_patch_degree+1, height*new_patch_degree))
-                    # The integrand patch corresponds to the bottom-right sub-triangle in the integrated patch.
+                    # Compute important corresponding indices for the patch/pair in both the integrand grid and the integral grid.
+                    integrand_lower_left_index = perm(((patches_width - height)*patch_degree, depth*patch_degree, height*patch_degree))
+                    integrand_lower_right_index = relative_index(integrand_lower_left_index, perm((-patch_degree, patch_degree, 0)))
+
+                    # integral_lower_left_index = relative_index(add_indices(integrand_lower_left_index, integrand_lower_left_index), (-1,1,0))
+                    # integral_lower_right_index = relative_index(add_indices(integrand_lower_right_index, integrand_lower_right_index), (-1,0,1))
+                    integral_lower_left_index = perm(((patches_width - height)*new_patch_degree-1, depth*new_patch_degree+1, height*new_patch_degree))
+                    integral_lower_right_index = relative_index(integral_lower_left_index, perm((-patch_degree-1, patch_degree, 1)))
+
+                    print("integrand_lower_left_index:", integrand_lower_left_index)
+                    print("integrand_lower_right_index:", integrand_lower_right_index)
+                    print("integral_lower_left_index:", integral_lower_left_index)
+                    print("integral_lower_right_index:", integral_lower_right_index)
+
+                    # The integrand patch corresponds to the bottom-right sub-triangle in this integrated patch:
                     #         *
                     #        /\
                     #       /  \
@@ -758,24 +788,68 @@ def regular_triangular_bspline(continuity):
                     #     / \ /  \
                     #    *___o____o
                     #        ^
-                    #        lower_left_index into the integrated grid.
+                    #        lower_left_index into the integral grid.
+                    #    *----o---o
+                    #     \ /  \ / 
+                    #      *----o <- lower_right_index into the integral grid.
+                    #       \  /
+                    #        \*
+                        
 
+		    # Test with integral values to see if it matches the Sabin paper.
+                    TEST_INTEGRAL_VALUES=True
+                    print("------------------------------------------------------------")
+                    print("Lower-left triangle")
+                    print("------------------------------------------------------------")
+                    print("Integrand:")
+                    print_triangle_stensor(integrand_grid)
                     for patch_depth in range(patch_degree+1):
                         for patch_height in range(patch_degree+1-patch_depth):
-                            integrand_index = relative_index(integrand_lower_left_index, perm(-patch_depth-patch_height, patch_depth, patch_height))
-                            
-                            
-                            
+                            integrand_index = relative_index(integrand_lower_left_index, perm((-patch_depth-patch_height, patch_depth, patch_height)))
+                            integral_index = relative_index(integral_lower_left_index, perm((-patch_depth-patch_height, patch_depth, patch_height)))
+                            left_integral_index = relative_index(integral_index, perm((1, -1, 0)))
+                            print("integrand_index:", integrand_index)
+                            print("integral_index:", integral_index)
+                            print("left_integral_index:", left_integral_index)
+
+                            if TEST_INTEGRAL_VALUES:
+                                integral_grid.set(integral_index, integrand_grid[integrand_index] + integral_grid[left_integral_index])
+                            else:
+                                integral_grid.set(integral_index, integrand_grid[integrand_index]/(patch_degree + 1) + integral_grid[left_integral_index])
+                    print("Integral:")
+                    print_triangle_stensor(integral_grid)
                             
 
+		    # When height is maximal, there is no adjacent triangle to the top-right, so
+		    # those coefficients aren't computed.
+                    if height == patches_width - depth - 1:
+                        continue
+		    # Otherwise, do effectively the same thing for the second triangle. The previous triangle has been integrated,
+		    # so the initial conditions are already provided.
+                    #    *----o---o
+                    #     \ /  \ /   Now, patch_depth increases from the bottom-left strip to the top-right corner,
+                    #      *----o    and patch_height increases from the bottom-right to the top-left part of the strip.
+                    #       \  /
+                    #        \*
+                    print("------------------------------------------------------------")
+                    print("Top-right triangle")
+                    print("------------------------------------------------------------")
+                    for patch_depth in range(patch_degree+1):
+                        for patch_height in range(patch_degree+1-patch_depth):
+                            integrand_index = relative_index(integrand_lower_right_index, perm((-patch_depth, -patch_height, patch_depth+patch_height)))
+                            integral_index = relative_index(integral_lower_right_index, perm((-patch_depth, -patch_height, patch_depth+patch_height)))
+                            left_integral_index = relative_index(integral_index, perm((1, 0, -1))) #--
+                            print("integrand_index:", integrand_index)
+                            print("integral_index:", integral_index)
+                            print("left_integral_index:", left_integral_index)
 
-
-            # new_patch_degree = patch_degree + 1
-            # new_patches_width = new_patches_width + 1
-            # new_grid = stensor(3, new_patch_degree * new_patches_width)
-            # patch_degree = new_patch_degree
-            # patches_width = new_patches_width
-            # grid = new_grid
+                            if TEST_INTEGRAL_VALUES:
+                                integral_grid.set(integral_index, integrand_grid[integrand_index] + integral_grid[left_integral_index])
+                            else:
+                                integral_grid.set(integral_index, integrand_grid[integrand_index]/(patch_degree + 1) + integral_grid[left_integral_index])
+                            
+                            
+                            
 
 # lis = ["a", "b", "c"]
 # for p in cyclic_permutations(3):
