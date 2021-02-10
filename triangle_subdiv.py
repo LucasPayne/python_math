@@ -745,8 +745,10 @@ def regular_triangular_bspline(continuity):
             patches_width += 1 # Now that shift-subtract is done, the grid is wider.
             
             for depth in range(patches_width):
+                print("~~~~~~ DEPTH {} ~~~~~~".format(depth))
                 # Depth increases from the top-left strip to the bottom-right corner.
                 for height in range(patches_width - depth):
+                    print("~~~~~~ DEPTH {}: HEIGHT {} ~~~~~~".format(depth, height))
                     # Height ranges from the bottom-most part of the strip to the top-most.
                     #
                     # Each quadrilateral is formed by two patches with shared coefficients.
@@ -767,12 +769,13 @@ def regular_triangular_bspline(continuity):
                     #    *___o____o/   The *s are constants of integration, assumed already computed when integrating previous strips.
 
                     # Compute important corresponding indices for the patch/pair in both the integrand grid and the integral grid.
-                    integrand_lower_left_index = perm(((patches_width - height)*patch_degree, depth*patch_degree, height*patch_degree))
+                    # integrand_lower_left_index = perm(((patches_width - height)*patch_degree, depth*patch_degree, height*patch_degree))
+                    integrand_lower_left_index = perm(((patches_width - height - depth)*patch_degree, depth*patch_degree, height*patch_degree))
                     integrand_lower_right_index = relative_index(integrand_lower_left_index, perm((-patch_degree, patch_degree, 0)))
 
                     # integral_lower_left_index = relative_index(add_indices(integrand_lower_left_index, integrand_lower_left_index), (-1,1,0))
                     # integral_lower_right_index = relative_index(add_indices(integrand_lower_right_index, integrand_lower_right_index), (-1,0,1))
-                    integral_lower_left_index = perm(((patches_width - height)*new_patch_degree-1, depth*new_patch_degree+1, height*new_patch_degree))
+                    integral_lower_left_index = perm(((patches_width - height - depth)*new_patch_degree-1, depth*new_patch_degree+1, height*new_patch_degree))
                     integral_lower_right_index = relative_index(integral_lower_left_index, perm((-patch_degree-1, patch_degree, 1)))
 
                     print("integrand_lower_left_index:", integrand_lower_left_index)
@@ -847,7 +850,11 @@ def regular_triangular_bspline(continuity):
                                 integral_grid.set(integral_index, integrand_grid[integrand_index] + integral_grid[left_integral_index])
                             else:
                                 integral_grid.set(integral_index, integrand_grid[integrand_index]/(patch_degree + 1) + integral_grid[left_integral_index])
-                            
+            # Continue for permutation ...
+            # The grid has been integrated.
+            grid = integral_grid
+            patch_degree += 1
+                
                             
                             
 
