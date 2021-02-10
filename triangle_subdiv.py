@@ -1,6 +1,7 @@
 import sympy as sym
 import itertools
-from printing import print_coeffs, print_matrix
+from math import floor, ceil
+from printing import print_coeffs, print_matrix, matrix_row_strings
 Rat = sym.Rational
 Mat = sym.Matrix
 Sym = sym.symbols
@@ -687,7 +688,10 @@ def print_triangle_stensor(s):
     lists = [[0 for _ in range(s.rank+1)] for i in range(s.rank+1)]
     for index in s.indices():
         lists[s.rank-index[0]][index[1]] = s[index]
-    print_matrix(sym.Matrix(lists), lower_triangular=True)
+    strings = [s.strip() for s in matrix_row_strings(sym.Matrix(lists), lower_triangular=True)]
+    max_len = max(len(s) for s in strings)
+    for s in strings:
+        print(' '*(ceil((max_len-len(s))/2)) + s)
         
 
 # Shift-subtract-integrate convolution to form B-spline basis functions on a regular triangle grid as described in
@@ -726,7 +730,13 @@ def regular_triangular_bspline(continuity):
                 shift_index = relative_index(new_index, perm((-patch_degree, patch_degree, 0)))
                 shift_subtract_grid.set(new_index, shift_subtract_grid[new_index] + grid[index])
                 shift_subtract_grid.set(shift_index, shift_subtract_grid[shift_index] - grid[index])
+
+            
+            print("Shifted and subtract")
+            print_triangle_stensor(grid)
+            print("------->")
             print_triangle_stensor(shift_subtract_grid)
+            input()
 
             # Integrate, raising the degree of each patch by one.
             integrand_grid = shift_subtract_grid
@@ -854,7 +864,9 @@ def regular_triangular_bspline(continuity):
             # The grid has been integrated.
             grid = integral_grid
             patch_degree += 1
-                
+    print("COMPLETE")
+    print("patch_degree:", patch_degree)
+    print("patches_width:", patches_width)
                             
                             
 
