@@ -656,8 +656,9 @@ print_matrix(M)
 print_matrix(M.inv())
 
 
-def add_indices(index, add):
+def relative_index(index, add):
     assert(len(index) == len(add))
+    assert(sum(add) == 0)
     return tuple(index[i]+add[i] for i in range(len(index)))
 
 
@@ -694,9 +695,9 @@ def regular_triangular_bspline(continuity):
     print_triangle_stensor(grid)
     print("------------------------------------------------------------")
     
+    # Each repetition gives 2 more degrees of continuity.
     for iteration in range(continuity//2):
         # Do the same shift-subtract-integrate convolution symmetrically in each direction.
-
         # Directions of convolution: i->j, j->k, k->i.
         # The below code is written w/r/t i->j, and the other directions are accounted for by permuting the multi-indices used.
         for perm in cyclic_permutations(3):
@@ -704,8 +705,8 @@ def regular_triangular_bspline(continuity):
             # and subtract this from the patch coefficients.
             shift_subtract_grid = stensor(3, patch_degree*(patches_width+1))
             for index in grid.indices():
-                new_index = add_indices(index, perm((patch_degree, 0, 0)))
-                shift_index = add_indices(new_index, perm((-patch_degree, patch_degree, 0)))
+                new_index = relative_index(index, perm((patch_degree, 0, 0)))
+                shift_index = relative_index(new_index, perm((-patch_degree, patch_degree, 0)))
                 shift_subtract_grid.set(new_index, shift_subtract_grid[new_index] + grid[index])
                 shift_subtract_grid.set(shift_index, shift_subtract_grid[shift_index] - grid[index])
             print_triangle_stensor(shift_subtract_grid)
@@ -722,21 +723,49 @@ def regular_triangular_bspline(continuity):
             #      /_ /         \               /________\/                   
             #     /_ /           \                                              
             #    /__/_____________\                                             
+            new_patch_degree = patch_degree+1
             for depth in range(patches_width):
                 # Depth increases from the top-left strip to the bottom-right corner.
                 for height in range(patches_width - depth):
                     # Height ranges from the bottom-most part of the strip to the top-most.
                     #
                     # Each quadrilateral is formed by two patches with shared coefficients.
-                    # For example, below is the structure of coefficients for two degree 2 patches.
+                    # For example, below is the structure of coefficients for a quadrilateral of degree 2 patches.
+                    #
+                    #         o---------o                          
+                    #        /\        /
+                    #       /  \      / 
+                    #      /    \    /  
+                    #     /      \  /                  
+                    #    o________o/
+                    #   Degree 1 patches integrate to
                     #         *---o-----o                          
                     #        /\  / \   /
                     #       /  \/   \ / 
                     #      *---o-----o                         
                     #     / \ /  \  /                  
                     #    *___o____o/   The *s are constants of integration, assumed already computed when integrating previous strips.
-                    for patch_depth in range(1, patch_degree+1):
+
+                    # Form the index of the lower-left coefficient in the integrand grid.
+		    integrand_lower_left_index = perm(((patches_width - height)*patch_degree, depth*patch_degree, height*patch_degree))
+                    # Form the corresponding index in the integrated grid.
+		    lower_left_index = perm(((patches_width - height)*new_patch_degree-1, depth*new_patch_degree+1, height*new_patch_degree))
+                    # The integrand patch corresponds to the bottom-right sub-triangle in the integrated patch.
+                    #         *
+                    #        /\
+                    #       /  \
+                    #      *---o\ e.g. The integrand here is of degree 1.
+                    #     / \ /  \
+                    #    *___o____o
+                    #        ^
+                    #        lower_left_index into the integrated grid.
+
+                    for patch_depth in range(patch_degree+1):
                         for patch_height in range(patch_degree+1-patch_depth):
+                            integrand_index = relative_index(integrand_lower_left_index, perm(-patch_depth-patch_height, patch_depth, patch_height))
+                            
+                            
+                            
                             
 
 
