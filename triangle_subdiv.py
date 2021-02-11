@@ -687,7 +687,7 @@ def print_triangle_stensor(s):
     assert(s.k == 3)
     lists = [[0 for _ in range(s.rank+1)] for i in range(s.rank+1)]
     for index in s.indices():
-        lists[s.rank-index[0]][index[1]] = s[index]
+        lists[s.rank-index[2]][index[1]] = s[index]
     strings = [s.strip() for s in matrix_row_strings(sym.Matrix(lists), lower_triangular=True)]
     max_len = max(len(s) for s in strings)
     for s in strings:
@@ -697,30 +697,54 @@ def print_triangle_stensor(s):
 # Shift-subtract-integrate convolution to form B-spline basis functions on a regular triangle grid as described in
 #    Malcolm Sabin, 1977: The use of piecewise forms for the numerical representation of shape.
 def regular_triangular_bspline(continuity):
-    assert(continuity % 2 == 0)
+    # Lots of printouts for debugging.
+    VERBOSE=False
+    # Test with integral values to see if it matches the Sabin paper.
+    TEST_INTEGRAL_VALUES=False
+
+    if continuity % 2 == 0:
+        patch_degree = 1
+        patches_width = 3
+        grid = stensor(3, 3, sym_rational=True)
+        grid.set((1,1,1), 1)
+        num_iterations = continuity // 2
+    else:
+        print("Odd continuities not yet supported.")
+
     print("regular_triangular_bspline, continuity={}".format(continuity))
     print("============================================================")
-
-    patch_degree = 1
-    patches_width = 3
-    grid = stensor(3, 3, sym_rational=True)
-    grid.set((1,1,1), 1)
 
     print("Initial grid")
     print_triangle_stensor(grid)
     print("------------------------------------------------------------")
     
     # Each repetition gives 2 more degrees of continuity.
-    for iteration in range(continuity//2):
+    for iteration in range(num_iterations):
         print("================================================================================")
         print("ITERATION", iteration+1)
         print("================================================================================")
         # Do the same shift-subtract-integrate convolution symmetrically in each direction.
         # Directions of convolution: i->j, j->k, k->i.
         # The below code is written w/r/t i->j, and the other directions are accounted for by permuting the multi-indices used.
+        perm_number = 0
         for perm in cyclic_permutations(3):
             print("--------------------------------------------------------------------------------")
             print("DIRECTION", ", ".join(str(i) for i in perm((1,2,3))))
+            perm_number += 1
+            if perm_number == 1:
+                print("    --------")
+            elif perm_number == 2:
+                print("""   \\
+    \\
+     \\
+      \\
+       \\""")
+            elif perm_number == 3:
+                print("""        /
+       /
+      /
+     / 
+    /   """)
             print("--------------------------------------------------------------------------------")
             # Shift the patch coefficients over one patch in the direction of integration,
             # and subtract this from the patch coefficients.
@@ -732,11 +756,10 @@ def regular_triangular_bspline(continuity):
                 shift_subtract_grid.set(shift_index, shift_subtract_grid[shift_index] - grid[index])
 
             
-            print("Shifted and subtract")
+            print("Shift and subtract")
             print_triangle_stensor(grid)
             print("------->")
             print_triangle_stensor(shift_subtract_grid)
-            input()
 
             # Integrate, raising the degree of each patch by one.
             integrand_grid = shift_subtract_grid
@@ -755,10 +778,10 @@ def regular_triangular_bspline(continuity):
             patches_width += 1 # Now that shift-subtract is done, the grid is wider.
             
             for depth in range(patches_width):
-                print("~~~~~~ DEPTH {} ~~~~~~".format(depth))
+                if VERBOSE: print("~~~~~~ DEPTH {} ~~~~~~".format(depth))
                 # Depth increases from the top-left strip to the bottom-right corner.
                 for height in range(patches_width - depth):
-                    print("~~~~~~ DEPTH {}: HEIGHT {} ~~~~~~".format(depth, height))
+                    if VERBOSE: print("~~~~~~ DEPTH {}: HEIGHT {} ~~~~~~".format(depth, height))
                     # Height ranges from the bottom-most part of the strip to the top-most.
                     #
                     # Each quadrilateral is formed by two patches with shared coefficients.
@@ -787,11 +810,11 @@ def regular_triangular_bspline(continuity):
                     # integral_lower_right_index = relative_index(add_indices(integrand_lower_right_index, integrand_lower_right_index), (-1,0,1))
                     integral_lower_left_index = perm(((patches_width - height - depth)*new_patch_degree-1, depth*new_patch_degree+1, height*new_patch_degree))
                     integral_lower_right_index = relative_index(integral_lower_left_index, perm((-patch_degree-1, patch_degree, 1)))
-
-                    print("integrand_lower_left_index:", integrand_lower_left_index)
-                    print("integrand_lower_right_index:", integrand_lower_right_index)
-                    print("integral_lower_left_index:", integral_lower_left_index)
-                    print("integral_lower_right_index:", integral_lower_right_index)
+                    if VERBOSE:
+                        print("integrand_lower_left_index:", integrand_lower_left_index)
+                        print("integrand_lower_right_index:", integrand_lower_right_index)
+                        print("integral_lower_left_index:", integral_lower_left_index)
+                        print("integral_lower_right_index:", integral_lower_right_index)
 
                     # The integrand patch corresponds to the bottom-right sub-triangle in this integrated patch:
                     #         *
@@ -809,29 +832,26 @@ def regular_triangular_bspline(continuity):
                     #        \*
                         
 
-		    # Test with integral values to see if it matches the Sabin paper.
-                    TEST_INTEGRAL_VALUES=True
-                    print("------------------------------------------------------------")
-                    print("Lower-left triangle")
-                    print("------------------------------------------------------------")
-                    print("Integrand:")
-                    print_triangle_stensor(integrand_grid)
+                    if VERBOSE:
+                        print("------------------------------------------------------------")
+                        print("Lower-left triangle")
+                        print("------------------------------------------------------------")
+                        print("Integrand:")
+                        print_triangle_stensor(integrand_grid)
                     for patch_depth in range(patch_degree+1):
                         for patch_height in range(patch_degree+1-patch_depth):
                             integrand_index = relative_index(integrand_lower_left_index, perm((-patch_depth-patch_height, patch_depth, patch_height)))
                             integral_index = relative_index(integral_lower_left_index, perm((-patch_depth-patch_height, patch_depth, patch_height)))
                             left_integral_index = relative_index(integral_index, perm((1, -1, 0)))
-                            print("integrand_index:", integrand_index)
-                            print("integral_index:", integral_index)
-                            print("left_integral_index:", left_integral_index)
+                            if VERBOSE:
+                                print("integrand_index:", integrand_index)
+                                print("integral_index:", integral_index)
+                                print("left_integral_index:", left_integral_index)
 
                             if TEST_INTEGRAL_VALUES:
                                 integral_grid.set(integral_index, integrand_grid[integrand_index] + integral_grid[left_integral_index])
                             else:
                                 integral_grid.set(integral_index, integrand_grid[integrand_index]/(patch_degree + 1) + integral_grid[left_integral_index])
-                    print("Integral:")
-                    print_triangle_stensor(integral_grid)
-                            
 
 		    # When height is maximal, there is no adjacent triangle to the top-right, so
 		    # those coefficients aren't computed.
@@ -844,17 +864,19 @@ def regular_triangular_bspline(continuity):
                     #      *----o    and patch_height increases from the bottom-right to the top-left part of the strip.
                     #       \  /
                     #        \*
-                    print("------------------------------------------------------------")
-                    print("Top-right triangle")
-                    print("------------------------------------------------------------")
+                    if VERBOSE:
+                        print("------------------------------------------------------------")
+                        print("Top-right triangle")
+                        print("------------------------------------------------------------")
                     for patch_depth in range(patch_degree+1):
                         for patch_height in range(patch_degree+1-patch_depth):
                             integrand_index = relative_index(integrand_lower_right_index, perm((-patch_depth, -patch_height, patch_depth+patch_height)))
                             integral_index = relative_index(integral_lower_right_index, perm((-patch_depth, -patch_height, patch_depth+patch_height)))
-                            left_integral_index = relative_index(integral_index, perm((1, 0, -1))) #--
-                            print("integrand_index:", integrand_index)
-                            print("integral_index:", integral_index)
-                            print("left_integral_index:", left_integral_index)
+                            left_integral_index = relative_index(integral_index, perm((1, -1, 0)))
+                            if VERBOSE:
+                                print("integrand_index:", integrand_index)
+                                print("integral_index:", integral_index)
+                                print("left_integral_index:", left_integral_index)
 
                             if TEST_INTEGRAL_VALUES:
                                 integral_grid.set(integral_index, integrand_grid[integrand_index] + integral_grid[left_integral_index])
@@ -864,15 +886,15 @@ def regular_triangular_bspline(continuity):
             # The grid has been integrated.
             grid = integral_grid
             patch_degree += 1
+            print("Integrated")
+            print_triangle_stensor(grid)
+            print("patch_degree:", patch_degree)
+            print("patches_width:", patches_width)
     print("COMPLETE")
     print("patch_degree:", patch_degree)
     print("patches_width:", patches_width)
                             
                             
 
-# lis = ["a", "b", "c"]
-# for p in cyclic_permutations(3):
-#     print(p(lis))
-
-regular_triangular_bspline(2)
+regular_triangular_bspline(4)
 
