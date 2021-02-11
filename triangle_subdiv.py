@@ -710,6 +710,7 @@ def regular_triangular_bspline(continuity):
         num_iterations = continuity // 2
     else:
         print("Odd continuities not yet supported.")
+        return
 
     print("regular_triangular_bspline, continuity={}".format(continuity))
     print("============================================================")
@@ -726,11 +727,9 @@ def regular_triangular_bspline(continuity):
         # Do the same shift-subtract-integrate convolution symmetrically in each direction.
         # Directions of convolution: i->j, j->k, k->i.
         # The below code is written w/r/t i->j, and the other directions are accounted for by permuting the multi-indices used.
-        perm_number = 0
-        for perm in cyclic_permutations(3):
+        for perm_number, perm in enumerate(cyclic_permutations(3)):
             print("--------------------------------------------------------------------------------")
             print("DIRECTION", ", ".join(str(i) for i in perm((1,2,3))))
-            perm_number += 1
             if perm_number == 1:
                 print("    --------")
             elif perm_number == 2:
@@ -802,12 +801,8 @@ def regular_triangular_bspline(continuity):
                     #    *___o____o/   The *s are constants of integration, assumed already computed when integrating previous strips.
 
                     # Compute important corresponding indices for the patch/pair in both the integrand grid and the integral grid.
-                    # integrand_lower_left_index = perm(((patches_width - height)*patch_degree, depth*patch_degree, height*patch_degree))
                     integrand_lower_left_index = perm(((patches_width - height - depth)*patch_degree, depth*patch_degree, height*patch_degree))
                     integrand_lower_right_index = relative_index(integrand_lower_left_index, perm((-patch_degree, patch_degree, 0)))
-
-                    # integral_lower_left_index = relative_index(add_indices(integrand_lower_left_index, integrand_lower_left_index), (-1,1,0))
-                    # integral_lower_right_index = relative_index(add_indices(integrand_lower_right_index, integrand_lower_right_index), (-1,0,1))
                     integral_lower_left_index = perm(((patches_width - height - depth)*new_patch_degree-1, depth*new_patch_degree+1, height*new_patch_degree))
                     integral_lower_right_index = relative_index(integral_lower_left_index, perm((-patch_degree-1, patch_degree, 1)))
                     if VERBOSE:
@@ -830,8 +825,6 @@ def regular_triangular_bspline(continuity):
                     #      *----o <- lower_right_index into the integral grid.
                     #       \  /
                     #        \*
-                        
-
                     if VERBOSE:
                         print("------------------------------------------------------------")
                         print("Lower-left triangle")
@@ -893,8 +886,32 @@ def regular_triangular_bspline(continuity):
     print("COMPLETE")
     print("patch_degree:", patch_degree)
     print("patches_width:", patches_width)
-                            
+    print("grid_width:", patch_degree*patches_width)
+
+    # Convert this raw triangle of Bezier coefficients into a triangle of triangles, each triangle being
+    # the Bezier coefficients of a patch (polynomial piece of the basis function).
+    # These patches are of /\-oriented triangles.
+    patches = stensor(3, patches_width-1)
+    for patch_index in patches.indices():
+        lower_left_index = (patch_index[0]*patch_degree + patch_degree,
+                            patch_index[1]*patch_degree,
+                            patch_index[2]*patch_degree)
+        print(patch_index, "-->", lower_left_index)
+        bezier_coefficients = stensor(3, patch_degree, sym_rational=True)
+        for bezier_coefficient_index in bezier_coefficients.indices():
+            grid_index = (lower_left_index[0] - bezier_coefficient_index[1] - bezier_coefficient_index[2],
+                          lower_left_index[1] + bezier_coefficient_index[1],
+                          lower_left_index[2] + bezier_coefficient_index[2])
+            bezier_coefficients.set(bezier_coefficient_index, grid[grid_index])
+        print_triangle_stensor(bezier_coefficients)
+
+        if all(bezier_coefficients[i] == 0 for i in bezier_coefficients.indices()):
+            # This patch is zero everywhere. Signify this by giving it the value None.
+            patches.set(patch_index, None)
+        else:
+            patches.set(patch_index, bezier_coefficients)
+        
                             
 
-regular_triangular_bspline(4)
+regular_triangular_bspline(2)
 
