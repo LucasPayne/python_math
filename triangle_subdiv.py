@@ -927,10 +927,26 @@ def regular_triangular_bspline(continuity):
     # The triangle patch has Bezier points. Each Bezier point is a combination of the relevant control points weighted by
     # the corresponding Bezier coefficient in the relevant basis function patch of that control point.
 
+    # patches = stensor(3, patches_width-1)
+    patches_triangle_corners = [(patches_width//3-1, patches_width//3, patches_width//3),
+                                (patches_width//3, patches_width//3-1, patches_width//3),
+                                (patches_width//3, patches_width//3, patches_width//3-1)]
+    patches_triangle_corners_matrix = sym.Matrix([[i/(patches_width-1) for i in corner] for corner in patches_triangle_corners])
+    print(patches_triangle_corners)
+    # print(barycentric_patches_triangle_corners)
+
     for control_point_index in stensor_indices(3, 1+3*(continuity//2)):
         # Convert to central-triangle coordinates.
         central_triangle_index = [i - continuity//2 for i in control_point_index] #---I think this is correct.
+
+        patches_barycentric = patches_triangle_corners_matrix * sym.Matrix(central_triangle_index)
+        patches_barycentric = [patches_barycentric[i,0] for i in range(patches_barycentric.rows)]
+        patches_index = [round(5*x) for x in patches_barycentric]
+
         print(control_point_index, "-->", central_triangle_index)
+        print("patches_index:", patches_index)
+
+        
 
 
                             
