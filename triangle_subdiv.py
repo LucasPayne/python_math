@@ -910,7 +910,29 @@ def regular_triangular_bspline(continuity):
             patches.set(patch_index, None)
         else:
             patches.set(patch_index, bezier_coefficients)
-        
+
+    # Now the basis function is represented by a bounding triangle of polynomial patches.
+    # Each patch in this triangle stores a triangle of Bezier coefficients, or is None if this patch is outside the support of the basis function.
+
+    # Consider a regular isometric grid in the domain.
+    # For each point, there is a basis function that corresponds to a control point.
+    # Consider a /\-oriented triangle in the domain tessellation.
+    # This triangle is in the support of a certain number of basis functions, each corresponding to a control point.
+    # The image of this triangle is a polynomial piece of the surface. This polynomial piece has Bezier points dependent on
+    # the control points of those basis functions.
+    #
+    # Initialize a triangle of points symmetrically bounding a central triangle in the domain.
+    # Go over each point, and check whether the support of that point's basis function reaches the central triangle.
+    # 
+    # The triangle patch has Bezier points. Each Bezier point is a combination of the relevant control points weighted by
+    # the corresponding Bezier coefficient in the relevant basis function patch of that control point.
+
+    for control_point_index in stensor_indices(3, 1+3*(continuity//2)):
+        # Convert to central-triangle coordinates.
+        central_triangle_index = [i - continuity//2 for i in control_point_index] #---I think this is correct.
+        print(control_point_index, "-->", central_triangle_index)
+
+
                             
 
 regular_triangular_bspline(2)
