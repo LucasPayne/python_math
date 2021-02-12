@@ -942,7 +942,8 @@ def regular_triangular_bspline(continuity):
         bezier_masks.set(index, stensor(3, 1+3*(continuity//2), sym_rational=True))
 
 
-    for control_point_index in stensor_indices(3, 1+3*(continuity//2)):
+    control_points_width = 1+3*(continuity//2)
+    for control_point_index in stensor_indices(3, control_points_width):
         # Convert to central-triangle coordinates.
         central_triangle_index = [i - continuity//2 for i in control_point_index] #---I think this is correct.
 
@@ -966,11 +967,23 @@ def regular_triangular_bspline(continuity):
         print_triangle_stensor(bezier_masks[index])
         print("sum =", sum(bezier_masks[index][i] for i in bezier_masks[index].indices()))
 
+    string = "float ____[({0}*({0}+1))/2 * ({1}*({1}+1))/2] = ".format(patch_degree+1, control_points_width+1) + "{\n"
+    for bezier_index in bezier_masks.indices():
+        mask = bezier_masks[bezier_index]
+        string += "    "
+        for control_point_index in mask.indices():
+            weight = mask[control_point_index]
+            if weight == 0:
+                string += "0, "
+            else:
+                string += "{}.f/{}.f, ".format(weight.p, weight.q)
+        string += "\n"
+    string += "};"
+    print(string)
+    f = open("data/triangular_bspline_coefficients_C_{}.txt".format(continuity), "w+")
+    f.write(string)
+    f.close()
 
-        
-
-
-                            
 
 regular_triangular_bspline(2)
 
