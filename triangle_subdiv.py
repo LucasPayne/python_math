@@ -346,10 +346,11 @@ class stensor:
         assert(len(index) == self.k)
         assert(sum(index) == self.rank)
         for i,other_index in enumerate(self.indices()):
-            if index == other_index:
+            if all(index[j] == other_index[j] for j in range(self.k)):
                 return i
 
         print("FAILED flat index conversion on index", index)
+        print("k={}, rank={}".format(self.k, self.rank))
         assert(0)
         # ---this version doesn't work
         # tensor_index = self.to_tensor_index(index)
@@ -905,11 +906,13 @@ def regular_triangular_bspline(continuity):
             bezier_coefficients.set(bezier_coefficient_index, grid[grid_index])
         print_triangle_stensor(bezier_coefficients)
 
-        if all(bezier_coefficients[i] == 0 for i in bezier_coefficients.indices()):
-            # This patch is zero everywhere. Signify this by giving it the value None.
-            patches.set(patch_index, None)
-        else:
-            patches.set(patch_index, bezier_coefficients)
+        # if all(bezier_coefficients[i] == 0 for i in bezier_coefficients.indices()):
+        #     # This patch is zero everywhere. Signify this by giving it the value None.
+        #     patches.set(patch_index, None)
+        # else:
+        #     patches.set(patch_index, bezier_coefficients)
+        #------------------------------------------------------------
+        patches.set(patch_index, bezier_coefficients)
 
     # Now the basis function is represented by a bounding triangle of polynomial patches.
     # Each patch in this triangle stores a triangle of Bezier coefficients, or is None if this patch is outside the support of the basis function.
@@ -927,13 +930,17 @@ def regular_triangular_bspline(continuity):
     # The triangle patch has Bezier points. Each Bezier point is a combination of the relevant control points weighted by
     # the corresponding Bezier coefficient in the relevant basis function patch of that control point.
 
-    # patches = stensor(3, patches_width-1)
     patches_triangle_corners = [(patches_width//3-1, patches_width//3, patches_width//3),
                                 (patches_width//3, patches_width//3-1, patches_width//3),
                                 (patches_width//3, patches_width//3, patches_width//3-1)]
     patches_triangle_corners_matrix = sym.Matrix([[i/(patches_width-1) for i in corner] for corner in patches_triangle_corners])
-    print(patches_triangle_corners)
-    # print(barycentric_patches_triangle_corners)
+
+
+    bezier_masks = stensor(3, patch_degree)
+    for index in bezier_masks.indices():
+        # Each Bezier point has a mask of weight contributions from the bounding triangle of relevant control points.
+        bezier_masks.set(index, stensor(3, 1+3*(continuity//2), sym_rational=True))
+
 
     for control_point_index in stensor_indices(3, 1+3*(continuity//2)):
         # Convert to central-triangle coordinates.
@@ -942,9 +949,23 @@ def regular_triangular_bspline(continuity):
         patches_barycentric = patches_triangle_corners_matrix * sym.Matrix(central_triangle_index)
         patches_barycentric = [patches_barycentric[i,0] for i in range(patches_barycentric.rows)]
         patches_index = [round(5*x) for x in patches_barycentric]
-
         print(control_point_index, "-->", central_triangle_index)
         print("patches_index:", patches_index)
+
+        if any(i < 0 for i in patches_index):
+            # This patch does not exist in the bounding triangle of the patches.
+            continue
+
+        patch = patches[patches_index]
+        for bezier_index in bezier_masks.indices():
+            bezier_masks[bezier_index].set(control_point_index,
+                                           bezier_masks[bezier_index][control_point_index] +
+                                           patch[bezier_index])
+
+    for index in bezier_masks.indices():
+        print_triangle_stensor(bezier_masks[index])
+        print("sum =", sum(bezier_masks[index][i] for i in bezier_masks[index].indices()))
+
 
         
 
