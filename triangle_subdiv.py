@@ -462,7 +462,8 @@ def transform_bezier_simplex(k, degree, M):
     print_matrix(M)
     assert(M.rows == k and M.cols == k)
     rank = degree
-    control_points = stensor(k, rank, sym.symbols(" ".join("P_" + "".join(str(i) for i in index) for index in stensor_indices(k, rank))))
+    control_point_symbols = sym.symbols(" ".join("P_" + "".join(str(i) for i in index) for index in stensor_indices(k, rank)))
+    control_points = stensor(k, rank, control_point_symbols)
     masks = stensor(k, rank)
     for mask_index in masks.indices():
         mask_tensor_index = masks.to_tensor_index(mask_index)
@@ -472,6 +473,12 @@ def transform_bezier_simplex(k, degree, M):
             for index in control_points.indices()
         ))
         print(masks[mask_index])
+    transformation = []
+    for mask_index in masks.indices():
+        transformation.append([masks[mask_index].coeff(symbol) for symbol in control_point_symbols])
+    transformation = sym.Matrix(transformation)
+    print_matrix(transformation)
+    return transformation
 
 
 m = Mat([
@@ -941,6 +948,11 @@ def regular_triangular_bspline(continuity):
         # Each Bezier point has a mask of weight contributions from the bounding triangle of relevant control points.
         bezier_masks.set(index, stensor(3, 1+3*(continuity//2), sym_rational=True))
 
+    print("Organizing coefficients...")
+    print("patch_degree:", patch_degree)
+    print("patches_width:", patches_width)
+    print("grid_width:", patch_degree*patches_width)
+
 
     control_points_width = 1+3*(continuity//2)
     for control_point_index in stensor_indices(3, control_points_width):
@@ -949,9 +961,7 @@ def regular_triangular_bspline(continuity):
 
         patches_barycentric = patches_triangle_corners_matrix * sym.Matrix(central_triangle_index)
         patches_barycentric = [patches_barycentric[i,0] for i in range(patches_barycentric.rows)]
-        patches_index = [round(5*x) for x in patches_barycentric]
-        print(control_point_index, "-->", central_triangle_index)
-        print("patches_index:", patches_index)
+        patches_index = [round((patches_width-1)*x) for x in patches_barycentric]
 
         if any(i < 0 for i in patches_index):
             # This patch does not exist in the bounding triangle of the patches.
@@ -967,23 +977,81 @@ def regular_triangular_bspline(continuity):
         print_triangle_stensor(bezier_masks[index])
         print("sum =", sum(bezier_masks[index][i] for i in bezier_masks[index].indices()))
 
+    de_boor_to_bezier_matrix = []
+    # Print out the de-Boor-to-Bezier matrix in C/C++ syntax.
     string = "float ____[({0}*({0}+1))/2 * ({1}*({1}+1))/2] = ".format(patch_degree+1, control_points_width+1) + "{\n"
     for bezier_index in bezier_masks.indices():
         mask = bezier_masks[bezier_index]
         string += "    "
+        weights = []
         for control_point_index in mask.indices():
             weight = mask[control_point_index]
+            weights.append(weight)
             if weight == 0:
                 string += "0, "
             else:
                 string += "{}.f/{}.f, ".format(weight.p, weight.q)
         string += "\n"
+        de_boor_to_bezier_matrix.append(weights)
     string += "};"
     print(string)
     f = open("data/triangular_bspline_coefficients_C_{}.txt".format(continuity), "w+")
     f.write(string)
     f.close()
 
+    #================================================================================
+    # Subdivision
+    #================================================================================
+    # A full rank (possibly overdetermined) system is wanted, so that the de Boor window can
+    # be transformed to Bezier points, those Bezier points subdivided, then an inversion attempt made
+    # with the Moore-Penrose pseudoinverse, to find de Boor points which transform to the subdivided Bezier points.
+    #
+    # It is necessary to remove columns of zeroes. These correspond to points in the bounding triangle which are not actually in the
+    # support of the basis function.
+    
+    M = []
+    M_extracted_columns = [] # The relevant columns correspond to named points in the bounding triangle, so tracking which points are considered will be useful.
+    for col in range(len(de_boor_to_bezier_matrix[0])):
+        c = [de_boor_to_bezier_matrix[row][col] for row in range(len(de_boor_to_bezier_matrix))]
+        if not all(x == 0 for x in c):
+            M_extracted_columns.append(col)
+            M.append(c)
+    M = sym.Matrix(M).T
+    print_matrix(M)
+    print("Computing pseudo-inverse...")
+    try:
+        M_pseudoinverse = (M.T * M).inv() * M.T
+    except:
+        print("Failed to compute pseudo-inverse. M is not full rank.")
+
+    # The de Boor subdivision matrix is computed:
+    #     - The window of de Boor points is transformed by M.
+    #     - The resulting Bezier points are transformed by T to new Bezier points based on a certain affine parameter transformation.
+    #     - The pseudoinverse of M, M+, is used in an attempt to find de Boor points which would generate these new Bezier points.
+    # So, de_boor_subdiv = M+ T M.
+    bottom_left_affine_parameter_transform = Mat([
+        [1, Rat(1,2), Rat(1,2)],
+        [0, Rat(1,2), 0],
+        [0, 0, Rat(1,2)]
+    ])
+    middle_affine_parameter_transform = Mat([
+        [Rat(1,2), Rat(1,2), 0],
+        [0,        Rat(1,2), Rat(1,2)],
+        [Rat(1,2), 0,        Rat(1,2)]
+    ])
+    T = transform_bezier_simplex(3, patch_degree, bottom_left_affine_parameter_transform)
+    deboor_subdiv = M_pseudoinverse * T * M
+    # Check that all rows sum to 1.
+    assert(all(sum(deboor_subdiv[row, col] for col in range(deboor_subdiv.cols)) == 1 for row in range(deboor_subdiv.rows)))
+
+    for i,index in enumerate(stensor_indices(3, control_points_width)):
+        if i in M_extracted_columns: # do not consider points not in the support.
+            print(index)
+    print_matrix(deboor_subdiv)
+
 
 regular_triangular_bspline(2)
-
+# Note: Rational pseudoinverse is extremely slow for continuity > 2.
+#       --- What symbolic matrix inverse algorithm does sympy use?
+#       Possibly using floating point instead would work. Although, having rational weights is much preferred,
+#       so a floating point inverse then conversion to "most likely" rationals that sum to 1 could be possible.
