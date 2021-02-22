@@ -13,7 +13,7 @@ def Rec(n):
 
 
 
-def cyclic_matrix(v):
+def circulant(v):
     n = len(v)
     C = sym.Matrix([[0 for _ in range(n)] for __ in range(n)])
     for i in range(n):
@@ -30,36 +30,41 @@ vs = [
     [1,1,1,1],
     [1,-1,1,-1],
     [1,1j,-1,-1j],
-    [-1,1j,1,-1j]
-]
-vsadj = [
-    [1,1,1,1],
-    [1,-1,1,-1],
-    [1,-1j,-1,1j],
-    [-1,-1j,1,1j]
+    [1,-1j,-1,1j]
 ]
 
 # for v in vs:
 #     vv = [x/2 for x in v]
-#     print(cyclic_matrix(vv)*Mat(vv))
+#     print(circulant(vv)*Mat(vv))
 
 for v in vs:
     for vp in vs:
         vv = [x/2 for x in v]
         vvp = [x/2 for x in vp]
-        print(cyclic_matrix(vv)*Mat(vvp))
+        print(circulant(vv)*Mat(vvp))
 
-P = Mat([[x/2 for x in row] for row in vs])
-Padj = Mat([[x/2 for x in row] for row in vs])
+# Why cuberoot 4 here? -----
+# P appears 3 times in transformation. Vectors in P have square norm of 4.
+P = Mat([[x/sym.cbrt(4) for x in row] for row in vs])
 print_matrix(P)
 u = [9,1,3,8]
 v = [1,2,3,4]
-print(cyclic_matrix(u) * Mat(v))
-print(cyclic_matrix(v) * Mat(u))
+print(circulant(u) * Mat(v))
+print(circulant(v) * Mat(u))
 
-p = pointwise_mul(P*Mat(u), P*Mat(v))
-print(p)
-print((P * p).expand())
 print_matrix(P)
-print_matrix(P * P.T)
-print_matrix(P.T * P)
+print_matrix(P * P.H)
+print_matrix((P.H * pointwise_mul(P*Mat(u), P*Mat(v))).expand())
+print_matrix(circulant(u) * Mat(v))
+
+
+
+def circulant_eig(v):
+    [V,D] = circulant(v).diagonalize()
+    print("============================================================")
+    print_matrix(V.expand())
+    print_matrix(D.expand())
+# for i in range(1,5):
+#     circulant_eig(list(range(1,i+1)))
+
+
