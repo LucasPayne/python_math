@@ -3,7 +3,7 @@ import sympy as sym
 
 
 def matrix_row_strings(M, lower_triangular=False):
-    strings = [[str(sym.simplify(c)) for c in M.row(i)] for i in range(M.rows)]
+    strings = [[("{:.3f}".format(c) if type(c) is sym.numbers.Float else str(sym.simplify(c))) for c in M.row(i)] for i in range(M.rows)]
     for col in range(M.cols-1):
         max_len = 0
         for row in range(M.rows):
