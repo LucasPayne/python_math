@@ -27,6 +27,8 @@ def finite_differences(samples, order):
         power_matrix.append([(samples[i]*h)**j / factorial(j) for j in range(n)])
     power_matrix = sym.Matrix(power_matrix).T
     A = power_matrix.inv()
+    print(sym.latex(power_matrix.T.subs(h, 1)))
+    print(sym.latex(A.T.subs(h, 1)))
     weights = A.col(order).T
     return [weights[0, i] for i in range(weights.cols)]
 

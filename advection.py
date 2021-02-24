@@ -20,15 +20,20 @@ from finite_differences import finite_differences
 
 a = -10
 b = 10
-intervals = 100
+intervals = 500
 nodes = np.linspace(a, b, intervals)
 h = (b - a) / intervals
 stencil_radius = 2
-weights = [x.subs(Sym('h'), 1) for x in finite_differences(list(range(-stencil_radius,stencil_radius+1)), 1)]
+print(finite_differences(list(range(-stencil_radius,stencil_radius+1)), 2))
+weights = [x.subs(Sym('h'), h) for x in finite_differences(list(range(-stencil_radius,stencil_radius+1)), 2)]
+plt.xlim(-10, 10)
+plt.ylim(-5, 5)
 print(weights)
 input()
 def f(x):
-    return exp(-x**2/2)*sin(x)
+    # return exp(-x**2/2)*sin(x)
+    # return sqrt(abs(x))*exp(-x**2/2) + 0.2*sin(5*x)
+    return 3*exp(-x**2/2)
 u = [f(x) if abs(x) < 4 else 0 for x in nodes]
 # vel = [sin(x)+1 for x in nodes]
 vel = [1 for x in nodes]
@@ -62,6 +67,11 @@ def diagonal_form(a, upper = 1, lower= 1):
     return ab
 
 
+y = [exp(-x**2 / 2) for x in np.linspace(-10, 10, 50)]
+h = 20/50
+for i in range(4, 50-4+1):
+    print((y[i-1] - 2*y[i] + y[i+1])/(h**2), (-y[i-2] + 16*y[i-1] - 30*y[i] + 16*y[i+1] - y[i+2])/(12*h**2))
+input()
 
 plt.ion()
 dt = 0.1
@@ -74,7 +84,7 @@ while True:
 
     D = np.zeros((intervals, intervals))
     for weight_index,shift in enumerate(range(-stencil_radius, stencil_radius+1)):
-        if shift < stencil_radius:
+        if shift < 0:
             np.fill_diagonal(D[-shift:,:], weights[weight_index])
         else:
             np.fill_diagonal(D[:,shift:], weights[weight_index])
@@ -82,11 +92,11 @@ while True:
     M = np.identity(intervals)
     M -= dt * D
 
-    banded = True
+    banded = False
     start_time = time.time()
     if banded:
-        lower = 1
-        upper = 1
+        lower = stencil_radius
+        upper = stencil_radius
         M_diagonal_form = diagonal_form(M, lower, upper)
         u = linalg.solve_banded((1, 1), M_diagonal_form, u)
     else:
@@ -96,5 +106,7 @@ while True:
     print("{:.9f}".format(end_time - start_time))
 
     plt.clf()
+    plt.xlim(-10, 10)
+    plt.ylim(-3, 3)
     plt.plot(nodes, u)
     plt.pause(0.01)
