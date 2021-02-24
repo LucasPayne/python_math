@@ -127,13 +127,17 @@ def solve_linear_dirichlet_bvp(coefficients, boundary, boundary_values, interval
     x = linalg.solve(system, b)
     plt.plot(np.linspace(boundary[0], boundary[1], intervals+1), x)
 
-solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 100, 2)
-solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 10, 2)
+def main():
+    solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 100, 2)
+    solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 10, 2)
+    
+    
+    
+    # solve_linear_dirichlet_bvp([lambda x: 10*x, lambda x: 0, lambda x: 1], (0,1), (0, 1), 10, 4)
+    
+    # solve_linear_dirichlet_bvp([lambda x: x, lambda x: 0, lambda x: 1], (0,1), (0, 0), 100, 4)
+    # plot_linspace_func(boundary[0], boundary[1], intervals+1, lambda x: (1/6)*(x - x**3))
+    plt.show()
 
-
-
-# solve_linear_dirichlet_bvp([lambda x: 10*x, lambda x: 0, lambda x: 1], (0,1), (0, 1), 10, 4)
-
-# solve_linear_dirichlet_bvp([lambda x: x, lambda x: 0, lambda x: 1], (0,1), (0, 0), 100, 4)
-# plot_linspace_func(boundary[0], boundary[1], intervals+1, lambda x: (1/6)*(x - x**3))
-plt.show()
+if __name__ == "__main__":
+    main()
