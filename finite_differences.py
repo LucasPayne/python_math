@@ -11,7 +11,7 @@ Sym = sym.symbols
 Half = Rat(1,2)
 Third = Rat(1,3)
 Quarter = Rat(1,4)
-from math import factorial, sqrt, sin
+from math import factorial, sqrt, sin, cos, asin, acos
 def Rec(n):
     return Rat(1, n)
 
@@ -127,12 +127,29 @@ def solve_linear_dirichlet_bvp(coefficients, boundary, boundary_values, interval
     print_matrix(Mat(b))
 
     x = linalg.solve(system, b)
-    plt.plot(np.linspace(boundary[0], boundary[1], intervals+1), x)
+    plt.plot(np.linspace(boundary[0], boundary[1], intervals+1), x, "k")
 
 def main():
-    solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 100, 2)
-    solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 10, 2)
+    # solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 100, 2)
+    # solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 10, 2)
     
+    # solve_linear_dirichlet_bvp([lambda x: -sin(x), lambda x: 1, lambda x: 1], (0,1), (1, 0), 10, 2)
+
+    solve_linear_dirichlet_bvp([lambda x: 0, lambda x: 1, lambda x: 1], (0, 1), (2, 3), 100, 2)
+    exact = lambda x: sin(x)/sin(1) + 2
+    plt.plot(np.linspace(0, 1, 101), [exact(x) for x in np.linspace(0, 1, 101)], "b--")
+
+    u = sym.symbols("u", cls=sym.Function)
+    x = sym.symbols("x")
+    diffeq = sym.Eq(u(x).diff(x, x) + u(x), 0)
+    sol = sym.dsolve(diffeq)
+    print(sol)
+
+    plt.legend(["Solution with second order finite differences", "Exact solution"], loc="upper left")
+    plt.title("")
+    plt.xlabel("$x$")
+    # plt.ylabel("$y$")
+    plt.savefig("3a.pdf")
     
     
     # solve_linear_dirichlet_bvp([lambda x: 10*x, lambda x: 0, lambda x: 1], (0,1), (0, 1), 10, 4)
