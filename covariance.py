@@ -29,9 +29,12 @@ scale = random.uniform(0,0.5)
 points = np.array([[scales[i] * np.random.normal(0, 1) for i in range(3)] for __ in range(n)])
 for row in range(points.shape[0]):
     points[row,:] = points[row,:] + (scale-1) * scale_dir * points[row,:].dot(scale_dir)
+
 # print_matrix(sym.Matrix(points))
 mean = 1/n * sum(points[row,:] for row in range(points.shape[0]))
-C = 1/n * sum(np.outer(points[row,:] - mean, points[row,:] - mean) for row in range(points.shape[0]))
+# C = 1/n * sum(np.outer(points[row,:] - mean, points[row,:] - mean) for row in range(points.shape[0]))
+centralized_points = np.array([points[row,:] - mean for row in range(points.shape[0])])
+C = (1/n) * centralized_points.T.dot(centralized_points) # Easier way to write the above.
 print_matrix(Mat(C))
 print("det(C) =", linalg.det(C))
 
@@ -48,7 +51,7 @@ fig = plt.figure()
 ax = plt.gca(projection="3d")
 X = U[:,0]
 Y = U[:,1]
-plane_points = np.array([x*X + y*Y for x,y in np.mgrid[-3:3:25j, -3:3:25j].reshape(2,-1).T])
+plane_points = np.array([x*X + y*Y + mean for x,y in np.mgrid[-3:3:25j, -3:3:25j].reshape(2,-1).T])
 
 # ax.plot_surface(xx, yy, z, alpha=0.3)
 ax.scatter(points[:,0], points[:,1], points[:,2])
