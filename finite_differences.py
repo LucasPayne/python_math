@@ -27,6 +27,7 @@ def finite_differences(samples, order):
         power_matrix.append([(samples[i]*h)**j / factorial(j) for j in range(n)])
     power_matrix = sym.Matrix(power_matrix).T
     A = power_matrix.inv()
+    print_matrix(A)
     print(sym.latex(power_matrix.T.subs(h, 1)))
     print(sym.latex(A.T.subs(h, 1)))
     weights = A.col(order).T
@@ -130,6 +131,10 @@ def solve_linear_dirichlet_bvp(coefficients, boundary, boundary_values, interval
     plt.plot(np.linspace(boundary[0], boundary[1], intervals+1), x, "k")
 
 def main():
+
+    finite_differences(list(np.linspace(-1,1,5)), 4)
+    input()
+
     # solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 100, 2)
     # solve_linear_dirichlet_bvp([lambda x: 10 if x > 3/10 and x < 7/10 else 0, lambda x: 0, lambda x: 1], (0,1), (0, 0), 10, 2)
     
