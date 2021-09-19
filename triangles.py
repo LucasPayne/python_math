@@ -33,7 +33,7 @@ def draw_tri(p, q, r):
     plt.scatter(*point)
     radius = np.linalg.norm(point - p)
     draw_circle(point, radius)
-    
+
 
 
 draw_tri(np.array([0,0]), np.array([2,0]), np.array([3,2]))

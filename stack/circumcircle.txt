@@ -1,0 +1,46 @@
+I can give my idea of how someone might arrive at this determinant form of the circumcircle equation. There is a similar 3x3 determinant to determine $S = (s_x, s_y)$ on the line $PQ$,
+
+$$\det
+  \begin{bmatrix}
+    p_x & p_y & 1 \\
+    q_x & q_y & 1 \\
+    s_x & s_y & 1 \\
+  \end{bmatrix} = 0.
+$$
+
+When the determinant is $0$, the third row is an affine combination of the first two rows, as in, $S = \alpha_1P + \alpha_2Q$ for $\alpha_1 + \alpha_2 = 1$. This is exactly what determines a point $S$ on the line $PQ$. The circumcircle determinant is derived in the same style.
+Given a triangle $PQR$, any point $S$ will be an affine combination
+$$S = \alpha_1P + \alpha_2Q + \alpha_3R$$
+for $\alpha_1 + \alpha_2 + \alpha_3 = 1$. Letting the circumcircle of $PQR$ be centered at $C = (c_x, c_y)$ with radius $r$, we have by definition
+$$\|P - C\|^2 = \|Q - C\|^2 = \|R - C\|^2 = r^2.$$
+If $\|S - C\|^2 = r^2$ as well, then the $\alpha_i$ coefficients also combine these quadratic expressions:
+   $$\|S - C\|^2 = \alpha_1\|P - C\|^2 + \alpha_2\|Q - C\|^2 + \alpha_3\|R - C\|^2.\tag{1}\label{eq1}$$
+Equation \eqref{eq1} holds exactly when $\|S - C\|^2 = r^2$.
+The determinant
+$$\det
+  \begin{bmatrix}
+    p_x & p_y & (p_x - c_x)^2+(p_y - c_y)^2 & 1 \\
+    q_x & q_y & (q_x - c_x)^2+(q_y - c_y)^2 & 1 \\
+    r_x & r_y & (r_x - c_x)^2+(r_y - c_y)^2 & 1 \\
+    s_x & s_y & (s_x - c_x)^2+(s_y - c_y)^2 & 1 \\
+  \end{bmatrix}
+$$
+vanishes exactly when the last row is a linear combination of the first three. The column of ones forces this linear combination to be an affine combination. The first two columns force the coefficients to be exactly the barycentric coordinates of S with respect to PQR, which are the $\alpha_1,\alpha_2,\alpha_3$ used above. Therefore the determinant vanishes if and only if the affine combination for the third column holds, which is equation \eqref{eq1}.
+
+The circumcenter $C$ is in fact not needed explicitly. Equation \eqref{1} can be expanded as
+$$\|S\|^2 + \|C\|^2 - 2S\cdot C =
+    \alpha_1\left[\|P\|^2 + \|C\|^2 - 2P\cdot C\right]
+  + \alpha_2\left[\|Q\|^2 + \|C\|^2 - 2Q\cdot C\right]
+  + \alpha_3\left[\|R\|^2 + \|C\|^2 - 2R\cdot C\right].$$
+Since $\alpha_1 + \alpha_2 + \alpha_3$, we can remove the $\|C\|^2$ terms as redundant to the equality.
+Further, since $S = \alpha_1 P + \alpha_2 Q + \alpha_3 R$, we can remove the dot product terms as well, as this equality will always hold whether or not
+$\|S - C\|^2 = r^2$. Therefore we have the simplified determinant equation
+$$\det
+  \begin{bmatrix}
+    p_x & p_y & p_x^2+p_y^2 & 1 \\
+    q_x & q_y & q_x^2+q_y^2 & 1 \\
+    r_x & r_y & r_x^2+r_y^2 & 1 \\
+    s_x & s_y & s_x^2+s_y^2 & 1 \\
+  \end{bmatrix} = 0,
+$$
+which when expanded will necessarily give a polynomial equation in $s_x,s_y$ whose roots are on the circumcircle of $PQR$.
