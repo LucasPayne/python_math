@@ -2,12 +2,40 @@ import sympy as sym
 from sympy.combinatorics.permutations import Permutation
 import numpy as np
 import itertools
+from math import factorial
 
-def alternating_permutations(lis):
+# ---- doesn't enumerate permutations correctly
+def alternating_permutations(vals):
     # Generate permutations with alternating sign (+even, -odd, +even, -odd, ...).
-    N = len(lis)
-    indices = list(range(N))
-    for n in range(N):
+    # This uses the Lehmer code.
+    N = len(vals)
+
+    perm = [v for v in vals]
+    def swap(i,j):
+        tmp = perm[i]
+        perm[i] = perm[j]
+        perm[j] = tmp
+
+    num = 0
+    swap_num = 0
+    lehmer_code = np.zeros(N-1)
+    while True:
+        lehmer_pos = 0
+        while lehmer_pos < N-1 and lehmer_code[lehmer_pos] == lehmer_pos+1:
+            lehmer_pos += 1
+        if lehmer_pos == N-1:
+            break
+        num += 1
+        # print(", ".join([str(perm[i]) + ("*" if i in [0,lehmer_pos+1] else "") for i in range(len(perm))]), lehmer_code, lehmer_pos, num)
+        yield tuple(perm)
+        for i in range(lehmer_pos):
+            lehmer_code[i] = 0
+        lehmer_code[lehmer_pos] += 1
+
+        swap(0, lehmer_pos+1)
+    yield tuple(perm)
+    
+        
     
 
 
@@ -61,12 +89,22 @@ def line_point_join(L, p):
     plane = np.zeros(4)
     for n in range(4):
         t = 0
-        for i,j,k in itertools.permutations([(n+i)%4 for i in range(3)]):
-            sign = 1
-            t += sign * L[i,j]*p[k]
+        for i,perm in enumerate(alternating_permutations([(n+1+i)%4 for i in range(3)])):
+            sign = 1 if (i+n)%2==0 else -1 #---possibly a sign error
+            t += sign * L[perm[0],perm[1]]*p[perm[2]]
         plane[n] = t
     return plane
-        
+
+
+def point_point_join(p, q):
+    # p: 4-vector.
+    # q: 4-vector.
+    # Compute the exterior product p ^ q.
+    # This is a line represented by a 4x4 Plucker matrix.
+    plucker_matrix = np.zeros((4,4))
+    for i,j in itertools.product(range(4), repeat=2):
+        plucker_matrix[i,j] = p[i]*q[j] - p[j]*q[i]
+    return plucker_matrix
         
         
     
@@ -84,4 +122,29 @@ s = L.dot(k3) # Join line with plane. The regressive product here is simple sinc
 print(s)
 print(s.dot(k3))
 
-line_point_join(L, s)
+print(line_point_join(L, s))
+print(L)
+plane = line_point_join(L, np.array([0,0,0,1]))
+print(plane)
+print(L.dot(plane))
+
+
+# perms = [perm for perm in alternating_permutations([0,1,2])]
+# print(perms)
+# print(len(perms))
+# print(len(set(perms)))
+
+# l = plane_intersection(np.array([1,0,0,0]),np.array([0,1,0,0]))
+# print(l)
+# print(l.dot(np.array([0,0,1,-1]))) # z = 1 plane intersection
+# p = np.array([1,0,0,1])
+# plane = line_point_join(l, p)
+# print(plane)
+
+p = np.array([0,0,0,1])
+q = np.array([1,0,0,0])
+L = point_point_join(p, q)
+print(L)
+print(line_point_join(L, p))
+print(line_point_join(L, q))
+print(line_point_join(L, np.array([0,1,0,1])))
