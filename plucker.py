@@ -4,38 +4,40 @@ import numpy as np
 import itertools
 from math import factorial
 
-# ---- doesn't enumerate permutations correctly
-def alternating_permutations(vals):
-    # Generate permutations with alternating sign (+even, -odd, +even, -odd, ...).
-    # This uses the Lehmer code.
-    N = len(vals)
-
-    perm = [v for v in vals]
-    def swap(i,j):
-        tmp = perm[i]
-        perm[i] = perm[j]
-        perm[j] = tmp
-
-    num = 0
-    swap_num = 0
-    lehmer_code = np.zeros(N-1)
-    while True:
-        lehmer_pos = 0
-        while lehmer_pos < N-1 and lehmer_code[lehmer_pos] == lehmer_pos+1:
-            lehmer_pos += 1
-        if lehmer_pos == N-1:
-            break
-        num += 1
-        # print(", ".join([str(perm[i]) + ("*" if i in [0,lehmer_pos+1] else "") for i in range(len(perm))]), lehmer_code, lehmer_pos, num)
-        yield tuple(perm)
-        for i in range(lehmer_pos):
-            lehmer_code[i] = 0
-        lehmer_code[lehmer_pos] += 1
-
-        swap(0, lehmer_pos+1)
-    yield tuple(perm)
+def permutation_to_lehmer_code(perm):
+    n = len(perm)
+    lehm = [v for v in perm]
+    for i in range(n-1):
+        for j in range(i+1,n):
+            if lehm[j] > lehm[i]:
+                lehm[j] -= 1
+    return lehm
     
-        
+
+def lehmer_code_to_permutation(lehm):
+    n = len(lehm)
+    perm = [0 for i in range(n)]
+    select = [i for i in range(n)]
+    for i in range(n):
+        perm[i] = select[lehm[i]]
+        for j in range(lehm[i],n):
+            select[j] = select[(j+1)%n]
+    return Permutation(perm)
+
+def signed_permutations(vals):
+    N = len(vals)
+    lehmer_code = [0 for i in range(N)]
+    while True:
+        lehmer_pos = N-2
+        yield (-2*(sum(lehmer_code)%2)+1, lehmer_code_to_permutation(lehmer_code)(vals))
+        lehmer_code[lehmer_pos] += 1
+        while lehmer_code[lehmer_pos] > N-lehmer_pos-1:
+            if lehmer_pos == 0:
+                return
+            lehmer_pos -= 1
+            lehmer_code[lehmer_pos] += 1
+            for i in range(lehmer_pos+1,N):
+                lehmer_code[i] = 0
     
 
 
@@ -89,8 +91,11 @@ def line_point_join(L, p):
     plane = np.zeros(4)
     for n in range(4):
         t = 0
-        for i,perm in enumerate(alternating_permutations([(n+1+i)%4 for i in range(3)])):
-            sign = 1 if (i+n)%2==0 else -1 #---possibly a sign error
+        for sign,perm in signed_permutations([(n+1+i)%4 for i in range(3)]):
+            # print(sign, perm)
+            # sign = 1 if (i+n)%2==0 else -1 #---possibly a sign error
+            if n%2 == 0:
+                sign *= -1
             t += sign * L[perm[0],perm[1]]*p[perm[2]]
         plane[n] = t
     return plane
@@ -110,36 +115,37 @@ def point_point_join(p, q):
     
     
 
-k1 = np.array([1,2,3,4])
-k2 = np.array([2,3,4,5])
-L = plane_intersection(k1, k2)
-print(L)
-print(L.dot(k1))
-print(L.dot(k2))
-
-k3 = np.array([2,3,0,-1])
-s = L.dot(k3) # Join line with plane. The regressive product here is simple since L is already in the tensor form.
-print(s)
-print(s.dot(k3))
-
-print(line_point_join(L, s))
-print(L)
-plane = line_point_join(L, np.array([0,0,0,1]))
-print(plane)
-print(L.dot(plane))
-
-
-# perms = [perm for perm in alternating_permutations([0,1,2])]
-# print(perms)
-# print(len(perms))
-# print(len(set(perms)))
-
-# l = plane_intersection(np.array([1,0,0,0]),np.array([0,1,0,0]))
-# print(l)
-# print(l.dot(np.array([0,0,1,-1]))) # z = 1 plane intersection
-# p = np.array([1,0,0,1])
-# plane = line_point_join(l, p)
+# k1 = np.array([1,2,3,4])
+# k2 = np.array([2,3,4,5])
+# L = plane_intersection(k1, k2)
+# print(L)
+# print(L.dot(k1))
+# print(L.dot(k2))
+# 
+# k3 = np.array([2,3,0,-1])
+# s = L.dot(k3) # Join line with plane. The regressive product here is simple since L is already in the tensor form.
+# print(s)
+# print(s.dot(k3))
+# 
+# print(line_point_join(L, s))
+# print(L)
+# plane = line_point_join(L, np.array([0,0,0,1]))
 # print(plane)
+# print(L.dot(plane))
+# 
+# 
+# # perms = [perm for perm in alternating_permutations([0,1,2])]
+# # print(perms)
+# # print(len(perms))
+# # print(len(set(perms)))
+# 
+# # l = plane_intersection(np.array([1,0,0,0]),np.array([0,1,0,0]))
+# # print(l)
+# # print(l.dot(np.array([0,0,1,-1]))) # z = 1 plane intersection
+# # p = np.array([1,0,0,1])
+# # plane = line_point_join(l, p)
+# # print(plane)
+# 
 
 p = np.array([0,0,0,1])
 q = np.array([1,0,0,0])
@@ -148,3 +154,7 @@ print(L)
 print(line_point_join(L, p))
 print(line_point_join(L, q))
 print(line_point_join(L, np.array([0,1,0,1])))
+# 
+
+# for sign,perm in signed_permutations([0,1,2,3]):
+#     print(sign, perm)
