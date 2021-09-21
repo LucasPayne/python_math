@@ -1,3 +1,5 @@
+# Trying to derive a factoring scheme giving a quartic multiplication with two multiplies.
+# (e.g. maybe ((x+A)(x+B)+x+C)*(x+D) gives a general quartic.)
 import sympy as sym
 import itertools
 

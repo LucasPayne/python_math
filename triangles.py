@@ -74,6 +74,20 @@ def circumcircle_center_vector_algebra(p, q, r):
     return s[:2]
     
 
+def draw_circumconic(p,q,r,  a,b):
+    x,y = sym.symbols("x y")
+    M = sym.Matrix([
+        *[[point[0], point[1], 1, a*point[0]**2 + b*point[1]**2][::-1] for point in (p,q,r)],
+        [x, y, 1, a*x**2 + b*y**2][::-1]
+    ]).T
+    poly = cofactor_expansion(M)
+    f = sym.lambdify((x, y), poly)
+    xs = np.linspace(-5, 5, 100)
+    ys = np.linspace(-5, 5, 100)
+    X,Y = np.meshgrid(xs, ys)
+    Z = f(X, Y)
+    plt.contour(X, Y, Z, 0)
+
 
 
 def draw_tri(p, q, r):
@@ -82,43 +96,50 @@ def draw_tri(p, q, r):
     b = np.linalg.norm(r - p)
     c = np.linalg.norm(p - q)
     
-    # Incircle
-    center = (a*p + b*q + c*r)/(a + b + c)
-    plt.scatter([center[0]], [center[1]])
-    l = np.dot(center - p, (q-p)/np.linalg.norm(q-p))
-    d = sqrt(np.dot(center - p, center - p) - l**2)
-    draw_circle(center, d)
+    # # Incircle
+    # center = (a*p + b*q + c*r)/(a + b + c)
+    # plt.scatter([center[0]], [center[1]])
+    # l = np.dot(center - p, (q-p)/np.linalg.norm(q-p))
+    # d = sqrt(np.dot(center - p, center - p) - l**2)
+    # draw_circle(center, d)
 
-    r1 = np.array([p[1] - q[1], q[0] - p[0]])
-    h1 = np.array([*((p+q)/2), 1])
+    # r1 = np.array([p[1] - q[1], q[0] - p[0]])
+    # h1 = np.array([*((p+q)/2), 1])
 
-    r2 = np.array([p[1] - r[1], r[0] - p[0]])
-    h2 = np.array([*((p+r)/2), 1])
+    # r2 = np.array([p[1] - r[1], r[0] - p[0]])
+    # h2 = np.array([*((p+r)/2), 1])
 
-    # Circumcircle
-    point = np.cross(np.cross(r1, h1), np.cross(r2, h2))
-    point = point[:2]/point[2]
-    plt.scatter(*point)
-    radius = np.linalg.norm(point - p)
-    draw_circle(point, radius)
+    # # Circumcircle
+    # point = np.cross(np.cross(r1, h1), np.cross(r2, h2))
+    # point = point[:2]/point[2]
+    # plt.scatter(*point)
+    # radius = np.linalg.norm(point - p)
+    # draw_circle(point, radius)
 
-    point_2 = circumcircle_center(p, q, r)
-    print(point)
-    print(point_2)
+    # point_2 = circumcircle_center(p, q, r)
+    # print(point)
+    # print(point_2)
 
-    circumcircle_linear_equation()
+    # # circumcircle_linear_equation()
+    # 
+    # point_3 = circumcircle_center_vector_algebra(p,q,r)
+    # print(point_3)
+
+    draw_circumconic(p, q, r, 1, -1)
+    draw_circumconic(p, q, r, 1, 1)
+    draw_circumconic(p, q, r, 1, -4)
     
-    point_3 = circumcircle_center_vector_algebra(p,q,r)
-    print(point_3)
-    
 
     
 
-
-
-
-draw_tri(np.array([0,0]), np.array([2,0]), np.array([3,2]))
+# p = np.array([0,0])
+# q = np.array([2,0])
+# r = np.array([3,2])
+p = np.array([-1,1.221])
+q = np.array([0.532131,2])
+r = np.array([2,-2.5444])
+draw_tri(p, q, r)
 plt.gca().set_aspect(1)
+plt.gca().set_xlim(-5,5)
+plt.gca().set_ylim(-5,5)
 plt.show()
-
-
