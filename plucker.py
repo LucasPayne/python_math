@@ -12,7 +12,6 @@ def permutation_to_lehmer_code(perm):
             if lehm[j] > lehm[i]:
                 lehm[j] -= 1
     return lehm
-    
 
 def lehmer_code_to_permutation(lehm):
     n = len(lehm)
@@ -59,10 +58,10 @@ def signed_permutations(vals):
 # Ideally this tensor interface would be facilitated by some feature of numpy etc.
 
 def plane_coefficient(k1, i,j,k):
-    # A plane in R^3 is represented by a 4x4x4 antisymmetric tensor.
+    # A plane in R^3 is represented by a 4x4x4 antisymmetric tensor.)
     # Given its dual point k1 = (a,b,c,d), this returns the entry of the corresponding tensor at (i,j,k).
     indices = (i,j,k)
-    if (len(set(indices)) < 3):
+    if len(set(indices)) < 3:
         return 0
     n = list(set([0,1,2,3]) - set(indices))[0]
     pi = Permutation([(index - n)%4 - 1 for index in indices])
@@ -74,8 +73,10 @@ def plane_coefficient(k1, i,j,k):
     
         
 def plane_intersection(k1, k2):
-    # Contraction k1^(ijk)k2_(i)\partial_(jk).
-    # This is one form of the regressive product k1 v k2.
+    # k1: Plane represented by a 4-vector.
+    # k2: Plane represented by a 4-vector.
+    # Compute the regressive product k1 v k2 = k1 k2*.
+    # This is the contraction k1^(ijk)k2_(i)\partial_(jk).
     # The result is a 4x4 antisymmetric rank-two Plucker matrix.
     plucker_matrix = np.zeros((4,4))
     for j,k in itertools.product(range(4), repeat=2):
@@ -92,10 +93,8 @@ def line_point_join(L, p):
     for n in range(4):
         t = 0
         for sign,perm in signed_permutations([(n+1+i)%4 for i in range(3)]):
-            # print(sign, perm)
-            # sign = 1 if (i+n)%2==0 else -1 #---possibly a sign error
             if n%2 == 0:
-                sign *= -1
+                sign *= -1 #---Sign?
             t += sign * L[perm[0],perm[1]]*p[perm[2]]
         plane[n] = t
     return plane
