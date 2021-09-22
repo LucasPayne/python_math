@@ -7,8 +7,8 @@ import itertools
 from itertools import combinations_with_replacement as repeat_combinations
 import random
 
-plotmin = -500
-plotmax = 500
+plotmin = -5
+plotmax = 5
 def get_grid():
     xs = np.linspace(plotmin, plotmax, 500)
     ys = np.linspace(plotmin, plotmax, 500)
@@ -49,6 +49,31 @@ def ordered_sums(terms, n):
             yield tuple([i]) + trailing
 
 
+
+
+def point_point_join(p, q):
+    # p: Homogeneous 3-vector.
+    # q: Homogeneous 3-vector.
+    # Returns: Line p^q represented by a 3x3 antisymmetric matrix.
+    matrix = sym.zeros(3,3)
+    for i,j in itertools.product(range(3), repeat=2):
+        matrix[i,j] = p[i]*q[j] - p[j]*q[i]
+    return matrix
+
+# def line_line_intersect(l1, l2):
+#     # l1: Line represented by a 3x3 Plucker matrix.
+#     # l2: Line represented by a 3x3 Plucker matrix.
+#     # Returns: Point 3-vector.
+    
+
+def plucker_to_line(matrix):
+    # Convert 3x3 Plucker matrix to 3-vector.
+    vector = np.zeros(3)
+    for i,j in itertools.product(range(3), repeat=2):
+        for k in range(3):
+            vector[k] += levi_civita(i,j,k) * matrix[i, j]
+    return vector
+
 def five_point_conic(p,q,r,s,t):
     x,y,z = sym.symbols("x y z")
     monoms = lambda v: [v[i]*v[j] for i,j in repeat_combinations(range(3), 2)]
@@ -68,7 +93,7 @@ def five_point_conic(p,q,r,s,t):
 
     # Polarize the quadratic form.
     conic_poly = conic_equation.as_poly()
-    conic_polar = np.zeros((3,3))
+    conic_polar = sym.zeros(3,3)
     var = (x,y,z)
         
     for i,j in itertools.product(range(3), repeat=2):
@@ -79,24 +104,49 @@ def five_point_conic(p,q,r,s,t):
     return conic_equation, conic_polar
 
 
+def plot_conic(conic_equation):
+    x,y,z = sym.symbols("x y z")
+    f = sym.lambdify((x, y), conic_equation.subs(z, 1))
+    X,Y = get_grid()
+    Z = f(X, Y)
+    plt.contour(X, Y, Z, 0)
 
-def point_point_join(p, q):
-    # p: Homogeneous 3-vector.
-    # q: Homogeneous 3-vector.
-    # Returns: Line p^q represented by a 3x3 antisymmetric matrix.
-    matrix = sym.zeros(3,3)
-    for i,j in itertools.product(range(3), repeat=2):
-        matrix[i,j] = p[i]*q[j] - p[j]*q[i]
 
-    return matrix
+def conic():
+    p = np.array([-1,0])
+    q = np.array([2,-1])
+    r = np.array([3,2])
+    s = np.array([2,2.33])
+    t = np.array([1,-1])
+    conic_equation, conic_polar = five_point_conic(p,q,r,s,t)
+    print(conic_equation)
+    print(conic_polar)
+    # l = point_point_join(np.array([*p,1]), np.array([*q,1]))
+    l = point_point_join(np.array([0,0,1]), np.array([1,1,0]))
+    R = l.T*conic_polar*l
 
-def plucker_to_line(matrix):
-    # Convert 3x3 Plucker matrix to 3-vector.
-    vector = np.zeros(3)
-    for i,j in itertools.product(range(3), repeat=2):
-        for k in range(3):
-            vector[k] += levi_civita(i,j,k) * matrix[i, j]
-    return vector
+    lamb = sym.symbols(r"\lambda")
+    shifted_minor = R + lamb*l
+    shifted_minor.col_del(0)
+    shifted_minor.row_del(0)
+    lamb_sol = sym.solve(shifted_minor.det(), lamb)[0]
+    print(lamb_sol)
+    shifted_R = R + lamb_sol*l
+    intersects = shifted_R.col(0), shifted_R.row(0)
+    intersects = [np.array([inter[0]/inter[2], inter[1]/inter[2]]) for inter in intersects]
+    plt.scatter(*zip(*intersects), s=100, c="r")
+
+    plot_line(plucker_to_line(l))
+    a,b,c = sym.symbols("a b c")
+    k = sym.Matrix([a,b,c])
+    poly = (l*k).T * conic_polar * (l*k)
+    poly = (-poly[0]).expand()
+    # The result is a degenerate dual conic. This is a product of two lines,
+    # whose dual points are the intersection of the original line with the conic.
+    print(poly)
+    
+
+    
 
 
 # def levi_civita_contraction(num_upper, num_lower, tensor):
@@ -107,57 +157,8 @@ def plucker_to_line(matrix):
 #         for multiindex in itertools.product(range(N), repeat=num_upper):
 #             contracted[*contraction_multiindex] += levi_civita(*contraction_multiindex)
 #     levi_civita()
-
-
-
-def points_determine_algebraic_form(n, points):
-    assert(len(points) == (n+1)*(n+2)/2 - 1)
-    x,y,z = sym.symbols("x y z")
-    monoms = lambda v: [prod([v[i] for i in multiindex]) for multiindex in repeat_combinations(range(3), n)]
-    M = sym.Matrix([
-        *[monoms([*point, 1]) for point in points],
-        monoms((x,y,z))
-    ])
-    equation = M.det()
-    print(equation.expand())
-    f = sym.lambdify((x, y), equation.subs(z, 1))
-    X,Y = get_grid()
-    Z = f(X, Y)
-    plt.contour(X, Y, Z, 0)
-    plt.scatter(*zip(*points))
-    # for var in [x,y,z]:
-    #     fprime = sym.lambdify((x,y,z), sym.diff(equation, var))
-    #     plt.contour(X, Y, fprime(X,Y,1), 0)
-
     
 
-    
-# points = [
-#     np.array([0,0]),
-#     np.array([2,-1.11]),
-#     np.array([3.33,2]),
-#     np.array([2,2.11]),
-#     np.array([1,-1]),
-#     np.array([0,-3.32]),
-#     np.array([1.21321,-2.13213]),
-#     np.array([0.22,-1.213]),
-#     np.array([1,-1.0222213])
-# ]
-# points_determine_algebraic_form(3, points)
 
-def algebraic_form(n):
-    assert(n > 0)
-    num_points = (n+1)*(n+2)//2 - 1
-    # points = [4*np.random.rand(2) for i in range(num_points)]
-    points = [4*np.array([random.randint(0,100), random.randint(0,100)]) for i in range(num_points)]
-    points_determine_algebraic_form(n, points)
-    nic_name = ["line", "conic", "cubic", "quartic", "quintic", "sextic", "septic"]
-    plt.title("{} points determine a {}".format(num_points, nic_name[n-1] if n-1 < len(nic_name) else "{}-nic".format(n)))
-    plt.show()
-
-algebraic_form(1)
-algebraic_form(2)
-algebraic_form(3)
-algebraic_form(4)
-algebraic_form(5)
-algebraic_form(6)
+conic()
+plt.show()

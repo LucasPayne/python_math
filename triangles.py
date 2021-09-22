@@ -87,6 +87,7 @@ def draw_circumconic(p,q,r,  a,b):
     X,Y = np.meshgrid(xs, ys)
     Z = f(X, Y)
     plt.contour(X, Y, Z, 0)
+    
 
 
 

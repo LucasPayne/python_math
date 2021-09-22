@@ -109,7 +109,51 @@ def point_point_join(p, q):
     for i,j in itertools.product(range(4), repeat=2):
         plucker_matrix[i,j] = p[i]*q[j] - p[j]*q[i]
     return plucker_matrix
+
+def five_point_conic(p,q,r,s,t):
+    x,y,z = sym.symbols("x y z")
+    monoms = lambda v: [v[i]*v[j] for i,j in repeat_combinations(range(3), 2)]
+    M = sym.Matrix([
+        *[monoms([*point, 1]) for point in (p,q,r,s,t)],
+        monoms((x,y,z))
+    ])
+    conic_equation = M.det()
+    f = sym.lambdify((x, y), conic_equation.subs(z, 1))
+    X,Y = get_grid()
+    Z = f(X, Y)
+    plt.contour(X, Y, Z, 0)
+    plt.scatter(*zip(p,q,r,s,t))
+    # for var in [x,y]:
+    #     fprime = sym.lambdify((x,y), sym.diff(conic_equation, var))
+    #     plt.contour(X, Y, fprime(X,Y), 0)
+
+    # Polarize the quadratic form.
+    conic_poly = conic_equation.as_poly()
+    conic_polar = np.zeros((3,3))
+    var = (x,y,z)
         
+    for i,j in itertools.product(range(3), repeat=2):
+        powers = [0,0,0]
+        powers[i] += 1
+        powers[j] += 1
+        conic_polar[i,j] = conic_poly.coeff_monomial(var[i]*var[j])/multinomial(2,powers)
+    return conic_equation, conic_polar
+        
+
+def conic():
+    p = np.array([0,0])
+    q = np.array([2,-1])
+    r = np.array([3,2])
+    s = np.array([2,2])
+    t = np.array([1,-1])
+    conic_equation, conic_polar = five_point_conic(p,q,r,s,t)
+    l = point_point_join(np.array([*p,1]), np.array([*q,1]))
+    plot_line(plucker_to_line(l))
+    x,y,z = sym.symbols("x y z")
+    point = sym.Matrix([x,y,z])
+    # print(point.T * l * point)
+    
+
         
     
     
