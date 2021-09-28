@@ -155,9 +155,5 @@ def algebraic_form(n):
     plt.title("{} points determine a {}".format(num_points, nic_name[n-1] if n-1 < len(nic_name) else "{}-nic".format(n)))
     plt.show()
 
-algebraic_form(1)
-algebraic_form(2)
-algebraic_form(3)
-algebraic_form(4)
-algebraic_form(5)
-algebraic_form(6)
+for i in range(1, 6+1):
+    algebraic_form(i)
